@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sloaney Pony</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f6;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 110px;
+      background: #1a5f7a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .sidebar-logo { font-size: 28px; margin-bottom: 12px; }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 98px;
+      color: rgba(255,255,255,0.65);
+      font-size: 15px;
+      border: none;
+      background: none;
+      transition: background 0.15s;
+    }
+    .nav-item.active { background: #e8851a; color: white; }
+    .nav-item:hover:not(.active) { background: rgba(255,255,255,0.1); color: white; }
+    .nav-icon { font-size: 20px; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      background: white;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 0.5px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #64748b; }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #1a5f7a; color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 500;
+    }
+    .content { flex: 1; overflow-y: auto; padding: 28px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-title { font-size: 28px; font-weight: 600; color: #1a5f7a; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
+    .placeholder { background: white; border-radius: 12px; border: 0.5px solid #e2e8f0; padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
+    .switch-owner-btn { background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #64748b; cursor: pointer; }
+    .switch-owner-btn:hover { background: #f0f4f6; }
+    .cal-nav-btn { background:white; border:0.5px solid #e2e8f0; border-radius:6px; padding:5px 14px; font-size:13px; cursor:pointer; color:#1e293b; }
+    .cal-nav-btn:hover { background:#f0f4f6; }
+    .orange-btn { background:#e8851a; color:white; border:none; border-radius:6px; padding:6px 14px; font-size:13px; cursor:pointer; }
+    .orange-btn:hover { background:#d4750f; }
+    .cal-hdr { text-align:center; padding:8px; font-size:11px; color:#94a3b8; font-weight:500; }
+    .cal-cell { border-right:0.5px solid #e2e8f0; border-bottom:0.5px solid #e2e8f0; padding:6px; min-height:70px; cursor:pointer; position:relative; }
+    .cal-cell:hover { background:#f8fafc; }
+    .cal-cell.other-month { background:#fafafa; cursor:default; }
+    .cal-cell.today { background:#e8edf0; }
+    .cal-cell.today .cal-date { color:#1e293b; width:28px; height:28px; display:flex; align-items:center; justify-content:center; }
+    .cal-cell.today .cal-pts { color:#64748b; }
+    .cal-cell.selected { background:#ffe8cc; }
+    .cal-date { font-size:16px; font-weight:500; color:#1e293b; margin-bottom:3px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; }
+    .cal-chip { border-radius:4px; padding:2px 5px; font-size:10px; font-weight:500; margin-bottom:2px; }
+    .cal-pts { font-size:11px; color:#64748b; font-weight:500; margin-top:2px; }
+    .side-card { background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:16px; }
+    .side-card-title { font-size:12px; font-weight:600; color:#475569; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; }
+    .dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+    .owner-pts-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; border-bottom:0.5px solid #f0f4f6; }
+    .owner-pts-row:last-child { border-bottom:none; }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+  
+   <button class="nav-item active" onclick="showPage('bookings', event)">
+      <span class="nav-icon">📅</span>
+      <span>Bookings</span>
+    </button>
+    <button class="nav-item" onclick="showPage('myboat', event)">
+      <span class="nav-icon">🚤</span>
+      <span>My Boat</span>
+    </button>
+    <button class="nav-item" onclick="showPage('owners', event)">
+      <span class="nav-icon">👥</span>
+      <span>Owners</span>
+    </button>
+    <button class="nav-item" onclick="showPage('logbook', event)">
+      <span class="nav-icon">📖</span>
+      <span>Log Book</span>
+    </button>
+    <button class="nav-item" onclick="showPage('reports', event)">
+      <span class="nav-icon">📋</span>
+      <span>Reports</span>
+    </button>
+    <button class="nav-item" onclick="showPage('documents', event)">
+      <span class="nav-icon">📁</span>
+      <span>Documents</span>
+    </button>
+    <button class="nav-item" onclick="showPage('settings', event)">
+      <span class="nav-icon">⚙️</span>
+      <span>Settings</span>
+    </button>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="font-size:32px; color:#64748b;">Sloaney Pony</div>
+      <div class="topbar-right">
+        <span id="topbar-greeting">Hello</span>
+        <div class="avatar" id="topbar-avatar">??</div>
+        <button class="switch-owner-btn" onclick="switchOwner()">Switch</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- MY BOAT -->
+      <div class="page" id="page-myboat">
+      
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; max-width:900px;">
+          <div>
+            <img src="images/boat.jpeg" alt="Sloaney Pony" style="width:100%; border-radius:12px; border:0.5px solid #e2e8f0;">
+          </div>
+          <div style="background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:24px;">
+            <div style="font-size:16px; font-weight:500; color:#1a5f7a; margin-bottom:16px;">Boat Details</div>
+            <table style="width:100%; font-size:14px; border-collapse:collapse;">
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Boat Name</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">Sloaney Pony</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Boat Location</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">Royal Freshwater Bay Yacht Club</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Mooring Location</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">TB 009</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Registration No</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">GV358</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">HIN #</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">AU-RVA36039D717</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Make</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">Riviera</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Model</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">3600</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Year</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">2017</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0;">Length</td><td style="padding:8px 0; text-align:right;">39 feet</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOOKINGS -->
+      <div class="page active" id="page-bookings">
+        <div class="page-title">Bookings</div>
+       
+        <div style="display:grid; grid-template-columns:2fr 1fr; gap:20px; max-width:1200px;">
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <button class="cal-nav-btn" onclick="calPrev()">← Prev</button>
+                <span id="cal-month-label" style="font-size:16px; font-weight:500; min-width:140px; text-align:center;"></span>
+                <button class="cal-nav-btn" onclick="calNext()">Next →</button>
+                <button class="cal-nav-btn" onclick="calToday()">Today</button>
+              </div>
+              
+            </div>
+            <div style="background:white; border-radius:12px; border:0.5px solid #e2e8f0; overflow:hidden;">
+              <div style="display:grid; grid-template-columns:repeat(7,1fr); background:#f8fafc; border-bottom:0.5px solid #e2e8f0;">
+                <div class="cal-hdr">Mon</div>
+                <div class="cal-hdr">Tue</div>
+                <div class="cal-hdr">Wed</div>
+                <div class="cal-hdr">Thu</div>
+                <div class="cal-hdr">Fri</div>
+                <div class="cal-hdr">Sat</div>
+                <div class="cal-hdr">Sun</div>
+              </div>
+              <div id="cal-body" style="display:grid; grid-template-columns:repeat(7,1fr);"></div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div class="side-card">
+              <div class="side-card-title">Your points</div>
+              <div id="my-points-display" style="font-size:28px; font-weight:500; color:#1a5f7a;">—</div>
+             <div id="my-points-sub" style="font-size:12px; color:#475569; margin-top:2px;">of 210 remaining</div>
+              <div id="my-advance-display" style="font-size:20px; font-weight:500; color:#e8851a; margin-top:10px;">—</div>
+              <div id="my-advance-sub" style="font-size:12px; color:#475569;">of 210 remaining</div>
+              <div id="my-excess-owed" style="font-size:14px; color:#e8851a; margin-top:10px; display:none;"></div>
+            </div>
+           
+            <div class="side-card" id="booking-panel">
+              <div id="selected-day-info">
+                <div style="font-size:13px; color:#94a3b8; margin-bottom:6px;">Make a Booking</div>
+                <div style="font-size:22px; font-weight:600; color:#1e293b;">Select a Day</div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+
+        <div style="max-width:1100px; margin-top:28px;">
+          <div style="font-size:16px; font-weight:500; color:#1a5f7a; margin-bottom:14px;">Upcoming Bookings</div>
+          <div style="background:white; border-radius:12px; border:0.5px solid #e2e8f0; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+              <thead>
+                <tr style="background:#f8fafc; border-bottom:0.5px solid #e2e8f0;">
+                  <th style="padding:12px 16px; text-align:left; font-weight:500; color:#64748b;">Member</th>
+                  <th style="padding:12px 16px; text-align:left; font-weight:500; color:#64748b;">Date</th>
+                  <th style="padding:12px 16px; text-align:left; font-weight:500; color:#64748b;">Booking Type</th>
+                  <th style="padding:12px 16px; text-align:right; font-weight:500; color:#64748b;">Points</th>
+                  <th style="padding:12px 16px;"></th>
+                </tr>
+              </thead>
+              <tbody id="upcoming-bookings-list"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+<!-- OWNERS -->
+      <div class="page" id="page-owners">
+        <div class="page-title">Owners</div>
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:20px; max-width:900px;">
+
+        <div class="side-card" style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="width:56px; height:56px; border-radius:50%; background:#22c55e; color:white; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:500; flex-shrink:0;">DR</div>
+            <div>
+              <div style="font-size:17px; font-weight:600; color:#1e293b; margin-bottom:2px;">Daniel Righetti</div>
+              <div style="font-size:13px; color:#e8851a; margin-bottom:10px;">1/4 share</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">righetti_daniel@cat.com</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">0418 924 684</div>
+              <div style="font-size:13px; color:#475569;">89A Northwood St</div>
+            </div>
+          </div>
+
+          <div class="side-card" style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="width:56px; height:56px; border-radius:50%; background:#ec4899; color:white; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:500; flex-shrink:0;">PA</div>
+            <div>
+              <div style="font-size:17px; font-weight:600; color:#1e293b; margin-bottom:2px;">Peter Abery</div>
+              <div style="font-size:13px; color:#e8851a; margin-bottom:10px;">1/4 share</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">peter.abery@abery.com.au</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">0414 617 617</div>
+              <div style="font-size:13px; color:#475569;">47/1 Corkhill St</div>
+            </div>
+          </div>
+
+          <div class="side-card" style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="width:56px; height:56px; border-radius:50%; background:#eab308; color:white; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:500; flex-shrink:0;">LM</div>
+            <div>
+              <div style="font-size:17px; font-weight:600; color:#1e293b; margin-bottom:2px;">Larry McIntosh</div>
+              <div style="font-size:13px; color:#e8851a; margin-bottom:10px;">1/4 share</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">larrymci@icloud.com</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">0416 161 816</div>
+              <div style="font-size:13px; color:#475569;">52B Adderley St</div>
+            </div>
+          </div>
+
+          <div class="side-card" style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="width:56px; height:56px; border-radius:50%; background:#3b82f6; color:white; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:500; flex-shrink:0;">PO</div>
+            <div>
+              <div style="font-size:17px; font-weight:600; color:#1e293b; margin-bottom:2px;">Paul Oen</div>
+              <div style="font-size:13px; color:#e8851a; margin-bottom:10px;">1/4 share</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">paul.oen55@gmail.com</div>
+              <div style="font-size:13px; color:#475569; margin-bottom:4px;">0438 374 643</div>
+              <div style="font-size:13px; color:#475569;">11 Bungalow Ct</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+     <!-- LOG BOOK -->
+      <div class="page" id="page-logbook">
+        <style>
+          .lb-toolbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+          .lb-toolbar .spacer { flex:1; }
+          .lb-search { font-size:13px; padding:7px 10px; border:0.5px solid #e2e8f0; border-radius:6px; width:220px; outline:none; }
+          .lb-search:focus { border-color:#1a5f7a; }
+          .lb-rate { font-size:13px; color:#64748b; }
+          .lb-rate strong { color:#1a5f7a; }
+
+          .lb-card { background:white; border-radius:12px; border:0.5px solid #e2e8f0; overflow:hidden; }
+          table.logbook { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+          table.logbook thead th {
+            background:#f8fafc; font-size:11px; font-weight:600; text-transform:uppercase;
+            letter-spacing:0.04em; color:#64748b; text-align:left;
+            padding:10px 12px; border-bottom:0.5px solid #e2e8f0; white-space:nowrap;
+          }
+          table.logbook tbody td {
+            padding:9px 12px; border-bottom:0.5px solid #f0f4f6;
+            font-size:13px; color:#1e293b; white-space:nowrap; vertical-align:middle;
+          }
+          table.logbook tbody tr:last-child td { border-bottom:none; }
+          table.logbook tbody tr:hover td { background:#f8fafc; }
+          .lb-num { text-align:right; font-variant-numeric:tabular-nums; }
+          .lb-sep { border-left:0.5px solid #e2e8f0; }
+          .lb-notes { white-space:normal; color:#475569; max-width:240px; font-size:12px; }
+          .lb-muted { color:#cbd5e1; }
+          .lb-added { color:#166534; font-weight:500; }
+          .lb-chip {
+            display:inline-block; padding:2px 7px; border-radius:10px;
+            font-size:11px; font-weight:600; letter-spacing:0.03em;
+          }
+
+          /* Modal */
+          .lb-modal-bg {
+            display:none; position:fixed; inset:0; background:rgba(15,23,42,0.45);
+            z-index:200; align-items:flex-start; justify-content:center; padding-top:60px;
+          }
+          .lb-modal {
+            background:white; border-radius:12px; width:560px; max-width:92vw;
+            box-shadow:0 20px 50px rgba(0,0,0,0.2);
+          }
+          .lb-modal-head {
+            padding:16px 20px; border-bottom:0.5px solid #e2e8f0;
+            display:flex; justify-content:space-between; align-items:center;
+          }
+          .lb-modal-head h2 { font-size:16px; font-weight:600; color:#1a5f7a; }
+          .lb-tag {
+            background:#e8f0f5; color:#1a5f7a; padding:3px 10px;
+            border-radius:10px; font-size:12px; font-weight:600;
+          }
+          .lb-modal-body { padding:18px 20px; }
+          .lb-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; }
+          .lb-grid .full { grid-column:1 / -1; }
+          .lb-grid label {
+            display:block; font-size:11px; text-transform:uppercase;
+            letter-spacing:0.05em; color:#64748b; margin-bottom:4px; font-weight:600;
+          }
+          .lb-grid input, .lb-grid select, .lb-grid textarea {
+            width:100%; font-family:inherit; font-size:13px; padding:8px 10px;
+            border:0.5px solid #e2e8f0; border-radius:6px; outline:none; background:white;
+          }
+          .lb-grid input:focus, .lb-grid select:focus, .lb-grid textarea:focus { border-color:#1a5f7a; }
+          .lb-grid textarea { resize:vertical; min-height:54px; }
+          .lb-section {
+            grid-column:1 / -1; font-size:11px; text-transform:uppercase;
+            letter-spacing:0.05em; color:#94a3b8; margin-top:6px;
+            padding-bottom:4px; border-bottom:0.5px solid #f0f4f6; font-weight:600;
+          }
+          .lb-calc {
+            grid-column:1 / -1; background:#f8fafc; border-radius:6px;
+            padding:10px 12px; font-size:12px; color:#64748b;
+            display:flex; justify-content:space-between;
+          }
+          .lb-calc strong { color:#1e293b; font-variant-numeric:tabular-nums; }
+          .lb-modal-foot {
+            padding:14px 20px; border-top:0.5px solid #e2e8f0;
+            display:flex; justify-content:flex-end; gap:10px;
+          }
+          .lb-btn {
+            font-size:13px; padding:7px 16px; border-radius:6px;
+            border:0.5px solid #e2e8f0; background:white; cursor:pointer; color:#1e293b;
+          }
+          .lb-btn:hover { background:#f8fafc; }
+        </style>
+
+        <div class="page-title">Log Book</div>
+        <div class="page-sub">Record your travel dates and fuel usage</div>
+
+        <div class="lb-toolbar">
+          <button class="orange-btn" onclick="openLogbookModal()" style="padding:7px 16px;">+ New Log</button>
+          <span class="lb-rate">Fuel rate: <strong id="logbook-fuel-rate">$3.35 / L</strong></span>
+          <div class="spacer"></div>
+          <input id="logbook-search" class="lb-search" type="text" placeholder="Filter by skipper, place, or note…" oninput="renderLogbook()">
+        </div>
+
+        <div class="lb-card">
+          <table class="logbook">
+            <thead>
+             <tr>
+                <th class="lb-num">#</th>
+                <th>Date</th>
+                <th>Skipper</th>
+                <th>From</th>
+                <th>To</th>
+                <th class="lb-num">RTN</th>
+                <th>Notes</th>
+                <th class="lb-num lb-sep">Start (L)</th>
+                <th class="lb-num">Finish (L)</th>
+                <th class="lb-num lb-sep">Used (L)</th>
+                <th class="lb-num">Cost of use</th>
+              </tr>
+            </thead>
+            <tbody id="logbook-body"></tbody>
+          </table>
+        </div>
+
+        <!-- New entry modal -->
+        <div class="lb-modal-bg" id="logbook-modal">
+          <div class="lb-modal">
+            <div class="lb-modal-head">
+              <h2>New Log Book Entry</h2>
+              <span class="lb-tag" id="logbook-next-num">#001</span>
+            </div>
+            <div class="lb-modal-body">
+              <div class="lb-grid">
+                <div>
+                  <label>Date</label>
+                  <input type="date" id="lb-f-date">
+                </div>
+                <div>
+                  <label>Skipper</label>
+                  <select id="lb-f-skipper">
+                    <option value="PO">Paul (PO)</option>
+                    <option value="DR">Daniel Righetti (DR)</option>
+                    <option value="LM">Larry McIntosh (LM)</option>
+                    <option value="PA">Peter Abery (PA)</option>
+                  </select>
+                </div>
+                <div>
+                  <label>From</label>
+                  <input type="text" id="lb-f-from" placeholder="e.g. Freshie Pen">
+                </div>
+                <div>
+                  <label>To</label>
+                  <input type="text" id="lb-f-to" placeholder="e.g. TB 009">
+                </div>
+                <div class="full" style="display:flex; align-items:center; gap:8px;">
+                  <input type="checkbox" id="lb-f-return" style="width:16px; height:16px; margin:0;">
+                  <label for="lb-f-return" style="margin:0; text-transform:none; letter-spacing:0; font-size:13px; color:#1e293b; font-weight:500; cursor:pointer;">Return trip</label>
+                </div>
+                <div class="full">
+                  <label>Notes</label>
+                  <textarea id="lb-f-notes" placeholder="Conditions, passengers, incidents…"></textarea>
+                </div>
+
+                <div class="lb-section">Fuel</div>
+
+                <div>
+                  <label>Fuel start (L)</label>
+                  <input type="number" step="1" id="lb-f-start" oninput="logbookRecalc()">
+                </div>
+                <div>
+                  <label>Fuel finish (L)</label>
+                  <input type="number" step="1" id="lb-f-finish" oninput="logbookRecalc()">
+                </div>
+
+                <div class="lb-calc">
+                  <span>Fuel used: <strong id="lb-c-used">— L</strong></span>
+                  <span>Calculated cost: <strong id="lb-c-cost">—</strong></span>
+                </div>
+              </div>
+            </div>
+            <div class="lb-modal-foot">
+              <button class="lb-btn" onclick="closeLogbookModal()">Cancel</button>
+              <button class="orange-btn" onclick="saveLogbookEntry()" style="padding:7px 18px;">Save Entry</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="page" id="page-reports">
+        <div class="page-title">Reports</div>
+        <div class="page-sub">Keeping reports up to date keeps everyone safe</div>
+        <div class="placeholder">Reports coming soon</div>
+      </div>
+
+      <!-- DOCUMENTS -->
+      <div class="page" id="page-documents">
+        <div class="page-title">Documents</div>
+        <div class="page-sub">Insurance, agreements, invoices and receipts</div>
+        <div class="placeholder">Documents coming soon</div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="page-title">Syndicate Settings</div>
+        <div class="page-sub">Manage syndicate booking rules</div>
+
+        <div style="display:grid; grid-template-columns:1fr 2fr; gap:24px; max-width:1000px; background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:24px;">
+          <div>
+            <div style="font-size:16px; font-weight:600; color:#1e293b; margin-bottom:8px;">Settings which could be changed but have been agreed by this syndicate</div>
+            <div style="font-size:13px; color:#64748b; line-height:1.5;">
+              The following values are fixed in the current system. They are recorded here for reference.
+            </div>
+          </div>
+         <div>
+            <div style="display:grid; grid-template-columns:1fr auto; gap:10px 20px; font-size:14px; align-items:center;">
+              <div style="color:#1a5f7a; font-weight:500;">Standard booking window</div>
+              <div style="color:#1e293b;">60 days</div>
+              <div style="color:#1a5f7a; font-weight:500;">Standard credits per month</div>
+              <div style="color:#1e293b;">210</div>
+              <div style="color:#1a5f7a; font-weight:500;">Advance credits</div>
+              <div style="color:#1e293b;">210</div>
+            </div>
+
+            <div style="margin-top:16px; padding-top:16px; border-top:0.5px solid #e2e8f0;">
+              <div style="color:#1a5f7a; font-weight:500; font-size:14px; margin-bottom:8px;">Daily booking cost (points)</div>
+              <div style="display:grid; grid-template-columns:1fr auto; gap:6px 20px; font-size:14px;">
+                <div style="color:#1e293b;">Monday</div>       <div style="color:#1e293b;">20</div>
+                <div style="color:#1e293b;">Tuesday</div>      <div style="color:#1e293b;">20</div>
+                <div style="color:#1e293b;">Wednesday</div>    <div style="color:#1e293b;">20</div>
+                <div style="color:#1e293b;">Thursday</div>     <div style="color:#1e293b;">20</div>
+                <div style="color:#1e293b;">Friday</div>       <div style="color:#1e293b;">30</div>
+                <div style="color:#1e293b;">Saturday</div>     <div style="color:#1e293b;">50</div>
+                <div style="color:#1e293b;">Sunday</div>       <div style="color:#1e293b;">50</div>
+                <div style="color:#1e293b;">Public holiday</div><div style="color:#1e293b;">70</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 2fr; gap:24px; max-width:1000px; background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:24px; margin-top:20px;">
+          <div>
+            <div style="font-size:16px; font-weight:600; color:#1e293b; margin-bottom:8px;">Excess Bookings</div>
+            <div style="font-size:13px; color:#64748b; line-height:1.5;">
+              Within 48 hours of a booking day, an owner may book even if they've run out of points for the month. Any points they have left are used first. The remaining cost is charged in dollars at the rate set here. This is an honor-system charge — it's shown in the checkout panel but not tracked by the system.
+            </div>
+          </div>
+          <div>
+            <label for="settings-excess-cost" style="display:block; font-size:14px; font-weight:500; color:#1a5f7a; margin-bottom:6px;">Excess cost per point</label>
+            <div style="display:flex; align-items:stretch; max-width:240px; border:0.5px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+              <span style="padding:10px 14px; background:#f8fafc; color:#64748b; font-size:14px; border-right:0.5px solid #e2e8f0;">$</span>
+              <input id="settings-excess-cost" type="number" min="0" step="0.5" style="flex:1; border:0; padding:10px 12px; font-size:14px; outline:none;">
+            </div>
+            <div style="margin-top:16px; display:flex; gap:10px;">
+              <button id="settings-save-btn" class="orange-btn" onclick="saveSettings('excess')" style="padding:8px 20px;">Save</button>
+              <span id="settings-save-status" style="align-self:center; font-size:13px; color:#64748b;"></span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 2fr; gap:24px; max-width:1000px; background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:24px; margin-top:20px;">
+          <div>
+            <div style="font-size:16px; font-weight:600; color:#1e293b; margin-bottom:8px;">Logbook Settings</div>
+            <div style="font-size:13px; color:#64748b; line-height:1.5;">
+              Manage the syndicate's logbook settings such as fuel cost.
+            </div>
+          </div>
+          <div>
+            <label for="settings-fuel-price" style="display:block; font-size:14px; font-weight:500; color:#1a5f7a; margin-bottom:6px;">Fuel price per litre</label>
+            <div style="display:flex; align-items:stretch; max-width:240px; border:0.5px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+              <span style="padding:10px 14px; background:#f8fafc; color:#64748b; font-size:14px; border-right:0.5px solid #e2e8f0;">$</span>
+              <input id="settings-fuel-price" type="number" min="0" step="0.01" style="flex:1; border:0; padding:10px 12px; font-size:14px; outline:none;">
+            </div>
+            <div style="margin-top:16px; display:flex; gap:10px;">
+             <button class="orange-btn" onclick="saveSettings('fuel')" style="padding:8px 20px;">Save</button>
+              <span id="settings-fuel-status" style="align-self:center; font-size:13px; color:#64748b;"></span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 2fr; gap:24px; max-width:1000px; background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:24px; margin-top:20px;">
+          <div>
+            <div style="font-size:16px; font-weight:600; color:#1e293b; margin-bottom:8px;">Public Holidays</div>
+            <div style="font-size:13px; color:#64748b; line-height:1.5;">
+              Automatically loaded from date.nager.at. Covers national and Western Australian public holidays. Each refreshes on startup and weekly thereafter.
+            </div>
+          </div>
+          <div id="settings-holidays-list" style="font-size:13px; color:#1e293b;">
+            Loading…
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001'
+
+    const owner = {
+      initials: sessionStorage.getItem('owner_initials') || '??',
+      name: sessionStorage.getItem('owner_name') || 'Unknown'
+    }
+
+    document.getElementById('topbar-greeting').textContent = 'Hello, ' + owner.name.split(' ')[0]
+    document.getElementById('topbar-avatar').textContent = owner.initials
+
+    const ownerColors = {
+      'PO': { bg:'#dbeafe', text:'#1e40af', dot:'#3b82f6' },
+      'DR': { bg:'#dcfce7', text:'#166534', dot:'#22c55e' },
+      'LM': { bg:'#fef9c3', text:'#854d0e', dot:'#eab308' },
+      'PA': { bg:'#fce7f3', text:'#9d174d', dot:'#ec4899' }
+    }
+
+    let calYear, calMonth, calData = { bookings:[], serviceDays:[], holidays:[] }, pointsData = {}
+    let selectedDates = []
+    let settings = { excess_cost_per_point: 5, fuel_price_per_litre: 3.35 }
+    const today = new Date()
+
+    async function loadSettings() {
+      try {
+        const res = await fetch(`${API}/api/settings`)
+        const data = await res.json()
+        if (data.excess_cost_per_point !== undefined) {
+          settings.excess_cost_per_point = Number(data.excess_cost_per_point)
+        }
+        if (data.fuel_price_per_litre !== undefined) {
+          settings.fuel_price_per_litre = Number(data.fuel_price_per_litre)
+        }
+      } catch (err) {
+        console.error('Failed to load settings:', err)
+      }
+    }
+
+    async function saveSettings(section) {
+      // Build payload based on which section's Save was clicked
+      let payload = {}
+      let statusId
+      let onSuccess = null
+
+      if (section === 'excess') {
+        const input = document.getElementById('settings-excess-cost')
+        statusId = 'settings-save-status'
+        const val = Number(input.value)
+        if (!Number.isFinite(val) || val < 0) {
+          const s = document.getElementById(statusId)
+          s.textContent = 'Please enter a valid non-negative number'
+          s.style.color = '#dc2626'
+          return
+        }
+        payload.excess_cost_per_point = val
+        onSuccess = () => { settings.excess_cost_per_point = val }
+      } else if (section === 'fuel') {
+        const input = document.getElementById('settings-fuel-price')
+        statusId = 'settings-fuel-status'
+        const val = Number(input.value)
+        if (!Number.isFinite(val) || val < 0) {
+          const s = document.getElementById(statusId)
+          s.textContent = 'Please enter a valid non-negative number'
+          s.style.color = '#dc2626'
+          return
+        }
+        payload.fuel_price_per_litre = val
+        onSuccess = () => { settings.fuel_price_per_litre = val }
+      } else {
+        return
+      }
+
+      const status = document.getElementById(statusId)
+      status.textContent = 'Saving…'
+      status.style.color = '#64748b'
+      try {
+        const res = await fetch(`${API}/api/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const data = await res.json()
+        if (data.error) {
+          status.textContent = data.error
+          status.style.color = '#dc2626'
+        } else {
+          onSuccess()
+          status.textContent = 'Saved'
+          status.style.color = '#16a34a'
+          setTimeout(() => { status.textContent = '' }, 2000)
+        }
+      } catch (err) {
+        status.textContent = 'Save failed'
+        status.style.color = '#dc2626'
+      }
+    }
+
+    function populateSettingsForm() {
+      const excess = document.getElementById('settings-excess-cost')
+      if (excess) excess.value = settings.excess_cost_per_point
+      const fuel = document.getElementById('settings-fuel-price')
+      if (fuel) fuel.value = settings.fuel_price_per_litre
+      renderHolidaysList()
+    }
+
+    async function renderHolidaysList() {
+      const target = document.getElementById('settings-holidays-list')
+      if (!target) return
+      target.textContent = 'Loading…'
+      try {
+        const res = await fetch(`${API}/api/holidays`)
+        const holidays = await res.json()
+        if (!holidays.length) {
+          target.textContent = 'No holidays loaded yet.'
+          return
+        }
+        // Group by year for readability
+        const byYear = {}
+        for (const h of holidays) {
+          const yr = h.date.slice(0, 4)
+          if (!byYear[yr]) byYear[yr] = []
+          byYear[yr].push(h)
+        }
+        const suffix = n => { const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10]||s[v]||s[0]) }
+        const sections = Object.keys(byYear).sort().map(yr => {
+          const rows = byYear[yr].map(h => {
+            const d = new Date(h.date + 'T12:00:00')
+            const label = suffix(d.getDate()) + ' ' + d.toLocaleDateString('default', { month:'long' })
+            return `
+              <div style="display:grid; grid-template-columns:auto 1fr; gap:16px; padding:4px 0; font-size:13px;">
+                <div style="color:#64748b; white-space:nowrap;">${label}</div>
+                <div style="color:#1e293b;">${h.name}</div>
+              </div>`
+          }).join('')
+          return `
+            <div style="margin-bottom:16px;">
+              <div style="font-size:14px; font-weight:600; color:#1a5f7a; margin-bottom:6px;">${yr}</div>
+              ${rows}
+            </div>`
+        }).join('')
+        target.innerHTML = sections
+      } catch (err) {
+        target.textContent = 'Failed to load holidays.'
+        target.style.color = '#dc2626'
+      }
+    }
+
+    function initCalendar() {
+      calYear = today.getFullYear()
+      calMonth = today.getMonth() + 1
+      loadCalendar()
+    }
+
+    async function loadCalendar() {
+      const [bookingsRes, pointsRes] = await Promise.all([
+        fetch(`${API}/api/bookings/${calYear}/${calMonth}`),
+        fetch(`${API}/api/points/${calYear}/${calMonth}`)
+      ])
+      calData = await bookingsRes.json()
+      pointsData = await pointsRes.json()
+      renderCalendar()
+      renderPoints()
+      loadUpcomingBookings()
+    }
+
+    async function loadUpcomingBookings() {
+      const res = await fetch(`${API}/api/upcoming`)
+      const data = await res.json()
+      const tbody = document.getElementById('upcoming-bookings-list')
+      if (!tbody) return
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#94a3b8;">No upcoming bookings</td></tr>`
+        return
+      }
+
+      tbody.innerHTML = data.map(row => {
+        const isService = row.type === 'service'
+        const isOwn = !isService && row.owner_initials === owner.initials
+        const canCancel = isOwn || isService
+
+        const d = new Date(row.date + 'T12:00:00')
+        const dateLabel = d.toLocaleDateString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+        const typeLabel = isService ? 'Out of Service' :
+          (row.booking_type === 'advance' ? 'Advance Booking' : 'Standard Booking')
+
+        const cancelBtn = canCancel ? `
+          <button onclick="${isService ? `cancelServiceDay('${row.date}')` : `cancelBooking('${row.date}')`}"
+            style="border:1px solid #e8851a; background:white; color:#e8851a; border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer;">
+            Cancel
+          </button>` : ''
+
+        const pts = isService ? '<td></td>' : `<td style="padding:12px 16px; text-align:right; color:#64748b;">${row.points_cost} pts</td>`
+
+        return `
+          <tr style="border-bottom:0.5px solid #f0f4f6;">
+            <td style="padding:12px 16px;">${row.owner_name}</td>
+            <td style="padding:12px 16px; color:#64748b;">${dateLabel}</td>
+            <td style="padding:12px 16px; color:#64748b;">${typeLabel}</td>
+            ${pts}
+            <td style="padding:12px 16px; text-align:center;">${cancelBtn}</td>
+          </tr>`
+      }).join('')
+    }
+
+    async function cancelServiceDay(date) {
+      if (!confirm('Remove this service day?')) return
+      await fetch(`${API}/api/service-days/${date}`, { method: 'DELETE' })
+      clearSelectedDay()
+      loadCalendar()
+    }
+
+    function renderCalendar() {
+      const label = new Date(calYear, calMonth - 1, 1)
+        .toLocaleString('default', { month:'long', year:'numeric' })
+      document.getElementById('cal-month-label').textContent = label
+
+      const firstDay = new Date(calYear, calMonth - 1, 1).getDay()
+      const daysInMonth = new Date(calYear, calMonth, 0).getDate()
+      const startOffset = (firstDay === 0) ? 6 : firstDay - 1
+      const prevDays = new Date(calYear, calMonth - 1, 0).getDate()
+      const body = document.getElementById('cal-body')
+      body.innerHTML = ''
+
+      const holidayDates = new Set(calData.holidays.map(h => h.date))
+      const bookingMap = {}
+      calData.bookings.forEach(b => bookingMap[b.date] = b)
+      const serviceMap = {}
+      calData.serviceDays.forEach(s => serviceMap[s.date] = s)
+
+      const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7
+
+      for (let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div')
+        cell.className = 'cal-cell'
+
+        let cellDate, isOtherMonth = false
+
+        if (i < startOffset) {
+          cellDate = new Date(calYear, calMonth - 2, prevDays - startOffset + i + 1)
+          isOtherMonth = true
+        } else if (i >= startOffset + daysInMonth) {
+          cellDate = new Date(calYear, calMonth, i - startOffset - daysInMonth + 1)
+          isOtherMonth = true
+        } else {
+          cellDate = new Date(calYear, calMonth - 1, i - startOffset + 1)
+        }
+
+        const dateStr = `${cellDate.getFullYear()}-${String(cellDate.getMonth()+1).padStart(2,'0')}-${String(cellDate.getDate()).padStart(2,'0')}`
+        const dayNum = cellDate.getDate()
+
+        if (isOtherMonth) {
+          cell.classList.add('other-month')
+          const d = document.createElement('div')
+          d.className = 'cal-date'
+          d.style.color = '#e2e8f0'
+          d.textContent = dayNum
+          cell.appendChild(d)
+          body.appendChild(cell)
+          continue
+        }
+
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+        if (dateStr === todayStr) cell.classList.add('today')
+        if (selectedDates.includes(dateStr)) cell.classList.add('selected')
+
+        const dateDiv = document.createElement('div')
+        dateDiv.className = 'cal-date'
+        dateDiv.textContent = dayNum
+        cell.appendChild(dateDiv)
+
+        if (bookingMap[dateStr]) {
+          const b = bookingMap[dateStr]
+          const c = ownerColors[b.owner_initials] || { bg:'#f1f5f9', text:'#475569', dot:'#888' }
+          const circle = document.createElement('div')
+          circle.style.cssText = `width:42px; height:42px; border-radius:50%; background:${c.dot}; color:white; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:500; margin:4px auto 2px;`
+          circle.textContent = b.owner_initials
+          if (b.booking_type === 'advance') {
+            const tri = document.createElement('div')
+            tri.style.cssText = 'font-size:8px; text-align:center; color:#94a3b8;'
+            tri.textContent = '▲ advance'
+            cell.appendChild(circle)
+            cell.appendChild(tri)
+          } else {
+            cell.appendChild(circle)
+          }
+        } else if (serviceMap[dateStr]) {
+          const svc = document.createElement('div')
+          svc.style.cssText = 'display:flex; flex-direction:column; align-items:center; margin-top:4px;'
+          svc.innerHTML = `<div style="font-size:22px;">🔧</div><div style="font-size:9px; color:#64748b; margin-top:2px;">Service</div>`
+          cell.appendChild(svc)
+        } else {
+          const pts = document.createElement('div')
+          pts.className = 'cal-pts'
+          pts.textContent = getPointCostDisplay(dateStr, holidayDates) + ' pts'
+          cell.appendChild(pts)
+        }
+
+        cell.onclick = () => selectDay(dateStr, bookingMap, serviceMap, holidayDates)
+        body.appendChild(cell)
+      }
+    }
+
+    function getPointCostDisplay(dateStr, holidayDates) {
+      if (holidayDates.has(dateStr)) return 70
+      const dow = new Date(dateStr + 'T12:00:00').getDay()
+      if (dow === 5) return 30
+      if (dow === 6 || dow === 0) return 50
+      return 20
+    }
+
+    function selectDay(dateStr, bookingMap, serviceMap, holidayDates) {
+      const panel = document.getElementById('selected-day-info')
+      const d = new Date(dateStr + 'T12:00:00')
+      const label = d.toLocaleDateString('default', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+
+      const todayMidnight = new Date()
+      todayMidnight.setHours(0,0,0,0)
+
+      // Dates in earlier calendar months are locked forever.
+      // Past dates within the current calendar month remain editable
+      // (so owners can convert an unused booking to service, etc).
+      const isBeforeCurrentMonth =
+        d.getFullYear() < todayMidnight.getFullYear() ||
+        (d.getFullYear() === todayMidnight.getFullYear() && d.getMonth() < todayMidnight.getMonth())
+      if (isBeforeCurrentMonth) {
+        selectedDates = []
+        renderCalendar()
+        renderPoints()
+        panel.innerHTML = `
+          <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+          <div style="font-size:12px; color:#94a3b8;">This date is in a prior month and cannot be booked or changed.</div>`
+        return
+      }
+
+      // Existing booking — single-day view (not mixable with multi-select)
+      if (bookingMap[dateStr]) {
+        selectedDates = []
+        renderCalendar()
+        renderPoints()
+        const b = bookingMap[dateStr]
+        const cost = getPointCostDisplay(dateStr, holidayDates)
+        if (b.owner_initials === owner.initials) {
+          panel.innerHTML = `
+            <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Booked by you — ${cost} pts</div>
+            <button class="orange-btn" style="width:100%;" onclick="cancelBooking('${dateStr}')">Cancel Booking</button>`
+        } else {
+          panel.innerHTML = `
+            <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+            <div style="font-size:12px; color:#64748b;">Booked by ${b.owner_name}</div>`
+        }
+        return
+      }
+
+      // Service day — single-day view
+      if (serviceMap[dateStr]) {
+        selectedDates = []
+        renderCalendar()
+        renderPoints()
+        panel.innerHTML = `
+          <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+          <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Service day — ${serviceMap[dateStr].notes || 'No notes'}</div>
+          <button onclick="cancelServiceDay('${dateStr}')" style="background:white; color:#e8851a; border:1px solid #e8851a; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer;">Cancel Service Day</button>`
+        return
+      }
+
+      // Bookable date — toggle in/out of selection
+      const idx = selectedDates.indexOf(dateStr)
+      if (idx >= 0) {
+        selectedDates.splice(idx, 1)
+      } else {
+        selectedDates.push(dateStr)
+        selectedDates.sort()
+      }
+      renderCalendar()
+      renderPoints()
+
+      if (selectedDates.length === 0) {
+        clearSelectedDay()
+        return
+      }
+
+      renderCheckoutPanel(holidayDates)
+    }
+
+    // Is this date today, tomorrow, or the day after? Mirrors server logic.
+    function isWithin48Hours(dateStr) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const target = new Date(dateStr + 'T12:00:00')
+      target.setHours(0, 0, 0, 0)
+      const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24))
+      return diffDays >= 0 && diffDays <= 2
+    }
+
+    // Work out, for the current selection, how many excess points (within-48hr
+    // overflow) will be billed in dollars.
+    function computeExcess(holidayDates) {
+      const today60 = new Date()
+      today60.setHours(0,0,0,0)
+      const byMonth = {}  // "YYYY-M" → { mandatory, excessEligible }
+      const currentYear = calYear
+      const currentMonth = calMonth
+
+      selectedDates.forEach(ds => {
+        const d = new Date(ds + 'T12:00:00')
+        const diffDays = Math.floor((d - today60) / (1000*60*60*24))
+        const isAdvance = diffDays > 60
+        if (isAdvance) return
+        const cost = getPointCostDisplay(ds, holidayDates)
+        const within48 = isWithin48Hours(ds)
+        const key = `${d.getFullYear()}-${d.getMonth() + 1}`
+        if (!byMonth[key]) byMonth[key] = { mandatory: 0, excessEligible: 0 }
+        if (within48) byMonth[key].excessEligible += cost
+        else byMonth[key].mandatory += cost
+      })
+
+      let totalExcessPoints = 0
+      for (const key of Object.keys(byMonth)) {
+        const [yr, mo] = key.split('-').map(Number)
+        let remaining
+        if (yr === currentYear && mo === currentMonth) {
+          const myStd = pointsData.standard?.find(p => p.owner_initials === owner.initials)
+          remaining = myStd ? (myStd.points_allocated - myStd.points_used) : 210
+        } else {
+          remaining = 210  // best-effort fallback for non-visible months
+        }
+        const { mandatory, excessEligible } = byMonth[key]
+        const leftover = Math.max(0, remaining - mandatory)
+        const pointsForExcess = Math.min(leftover, excessEligible)
+        totalExcessPoints += excessEligible - pointsForExcess
+      }
+
+      return {
+        excessPoints: totalExcessPoints,
+        excessDollars: totalExcessPoints * settings.excess_cost_per_point
+      }
+    }
+
+    function renderCheckoutPanel(holidayDates) {
+      const panel = document.getElementById('selected-day-info')
+      const today60 = new Date()
+      today60.setHours(0,0,0,0)
+      const suffix = n => { const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10]||s[v]||s[0]) }
+
+      let rows = ''
+      let total = 0
+      selectedDates.forEach(ds => {
+        const d = new Date(ds + 'T12:00:00')
+        const diffDays = Math.floor((d - today60) / (1000*60*60*24))
+        const isAdvance = diffDays > 60
+        const within48 = !isAdvance && isWithin48Hours(ds)
+        const cost = getPointCostDisplay(ds, holidayDates)
+        const dayLabel = suffix(d.getDate()) + ' ' + d.toLocaleDateString('default', { month:'long', year:'numeric' })
+        const cycleMonth = d.toLocaleDateString('default', { month:'long', year:'numeric' })
+        const cycleType = isAdvance ? 'Advance Credit' : 'Standard'
+        const tag = within48 ? ` <span style="font-size:10px; color:#e8851a; font-weight:500; margin-left:4px;">(within 48h)</span>` : ''
+        total += cost
+        rows += `
+          <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:center; font-size:13px; color:#1e293b; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">
+            <div>${dayLabel}${tag}</div>
+            <div>${cycleType} (${cycleMonth} Cycle)</div>
+            <div style="white-space:nowrap;">${cost} Points</div>
+          </div>`
+      })
+
+      const { excessPoints, excessDollars } = computeExcess(holidayDates)
+      const excessRow = excessPoints > 0 ? `
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#e8851a; font-weight:500; padding:6px 0 4px;">
+          <span>Excess charge (${excessPoints} pts × $${settings.excess_cost_per_point.toFixed(2)})</span>
+          <span>$${excessDollars.toFixed(2)}</span>
+        </div>` : ''
+
+      // "Mark Out of Service" is only meaningful for a single day
+      const serviceBlock = selectedDates.length === 1 ? `
+        <div style="border-top:0.5px solid #e2e8f0; padding-top:12px; margin-bottom:12px;">
+          <textarea id="service-notes" placeholder="Service notes (optional)" style="width:100%; font-size:12px; border:0.5px solid #e2e8f0; border-radius:6px; padding:6px; margin-bottom:10px; resize:none; height:48px; display:none;"></textarea>
+          <div id="service-actions" style="display:flex; gap:10px; align-items:center;">
+            <button id="service-btn" onclick="handleServiceClick('${selectedDates[0]}')" style="background:white; color:#e8851a; border:1px solid #e8851a; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer;">Mark Out of Service</button>
+            <button id="service-cancel-btn" onclick="clearSelectedDay()" style="display:none; background:white; color:#e8851a; border:1px solid #e8851a; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer;">Cancel</button>
+          </div>
+        </div>` : ''
+
+      const totalRow = selectedDates.length > 1 ? `
+        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:#1e293b; padding:10px 0 4px;">
+          <span>Total</span><span>${total} Points</span>
+        </div>` : ''
+
+      panel.innerHTML = `
+        <div style="font-size:15px; font-weight:600; color:#1e293b; margin-bottom:12px;">Checkout Booking/s</div>
+        <div style="border-top:0.5px solid #e2e8f0; padding-top:6px; margin-bottom:12px;">
+          ${rows}
+          ${totalRow}
+          ${excessRow}
+        </div>
+        ${serviceBlock}
+        <div id="booking-actions" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <button onclick="clearSelectedDay()" style="background:white; color:#e8851a; border:1px solid #e8851a; border-radius:8px; padding:8px 20px; font-size:13px; font-weight:500; cursor:pointer;">Cancel</button>
+          <button class="orange-btn" onclick="makeBookings()" style="padding:8px 20px;">Confirm Booking/s</button>
+        </div>`
+    }
+
+function clearSelectedDay() {
+      selectedDates = []
+      document.getElementById('selected-day-info').innerHTML = `
+        <div style="font-size:13px; color:#94a3b8; margin-bottom:6px;">Make a Booking</div>
+        <div style="font-size:22px; font-weight:600; color:#1e293b;">Select a Day</div>`
+      renderCalendar()
+      renderPoints()
+    }
+
+    async function makeBookings() {
+      if (selectedDates.length === 0) return
+      const res = await fetch(`${API}/api/bookings/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_initials: owner.initials, owner_name: owner.name, dates: selectedDates })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error) } else { clearSelectedDay(); loadCalendar() }
+    }
+
+    async function cancelBooking(date) {
+      if (!confirm('Cancel this booking and refund your points?')) return
+      const res = await fetch(`${API}/api/bookings/${date}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_initials: owner.initials })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error) } else { selectedDates = []; loadCalendar() }
+    }
+
+    function renderPoints() {
+      const myStandard = pointsData.standard?.find(p => p.owner_initials === owner.initials)
+      const myAdvance = pointsData.advance?.find(p => p.owner_initials === owner.initials)
+
+      const monthName = new Date(calYear, calMonth - 1, 1)
+        .toLocaleString('default', { month: 'long' })
+
+      // Work out what the selection would cost, split by cycle type
+      const holidayDates = new Set(calData.holidays.map(h => h.date))
+      const today60 = new Date()
+      today60.setHours(0,0,0,0)
+      let standardSpend = 0, advanceSpend = 0
+      selectedDates.forEach(ds => {
+        const d = new Date(ds + 'T12:00:00')
+        const diffDays = Math.floor((d - today60) / (1000*60*60*24))
+        const cost = getPointCostDisplay(ds, holidayDates)
+        if (diffDays > 60) advanceSpend += cost
+        else standardSpend += cost
+      })
+
+      if (myStandard) {
+        const remaining = myStandard.points_allocated - myStandard.points_used
+        const projected = Math.max(0, remaining - standardSpend)
+        const display = standardSpend > 0
+          ? `<span style="text-decoration:line-through; color:#94a3b8;">${remaining}</span> <span style="color:#e8851a;">${projected}</span>`
+          : `${remaining}`
+        document.getElementById('my-points-display').innerHTML =
+          `${display}<span style="font-size:14px; font-weight:400; color:#475569; margin-left:8px;">remaining in ${monthName}</span>`
+        document.getElementById('my-points-sub').textContent = `of ${myStandard.points_allocated} — used ${myStandard.points_used}`
+      }
+      if (myAdvance) {
+        const remaining = myAdvance.credits_allocated - myAdvance.credits_used
+        const projected = Math.max(0, remaining - advanceSpend)
+        const display = advanceSpend > 0
+          ? `<span style="text-decoration:line-through; color:#94a3b8;">${remaining}</span> <span style="color:#e8851a;">${projected}</span>`
+          : `${remaining}`
+        document.getElementById('my-advance-display').innerHTML =
+          `${display}<span style="font-size:13px; font-weight:400; color:#475569; margin-left:8px;">advance credits remaining</span>`
+        document.getElementById('my-advance-sub').textContent = `of ${myAdvance.credits_allocated} — used ${myAdvance.credits_used}`
+      }
+
+      // Running total of excess dollars owed for the visible month.
+      // If total standard points booked exceeds the allocation, the overflow
+      // was paid as within-48hr excess — the server enforces that non-within-48
+      // bookings must fit in the allocation, so any overflow is dollar-owed.
+      const excessEl = document.getElementById('my-excess-owed')
+      if (excessEl && myStandard) {
+        const myStandardBookings = (calData.bookings || []).filter(b =>
+          b.owner_initials === owner.initials && b.booking_type === 'standard'
+        )
+        const totalBooked = myStandardBookings.reduce((sum, b) => sum + b.points_cost, 0)
+        const overflow = Math.max(0, totalBooked - myStandard.points_allocated)
+        if (overflow > 0) {
+          const dollars = overflow * settings.excess_cost_per_point
+          excessEl.textContent = `Excess owed this month: $${dollars.toFixed(2)} (${overflow} pts)`
+          excessEl.style.display = 'block'
+        } else {
+          excessEl.style.display = 'none'
+        }
+      }
+
+      const allDiv = document.getElementById('all-points-display')
+      if (allDiv) {
+        allDiv.innerHTML = ''
+        const allOwners = [
+          { initials:'PO', name:'Paul' },
+          { initials:'DR', name:'Daniel' },
+          { initials:'LM', name:'Larry' },
+          { initials:'PA', name:'Peter' }
+        ]
+        allOwners.forEach(o => {
+          const pts = pointsData.standard?.find(p => p.owner_initials === o.initials)
+          const remaining = pts ? pts.points_allocated - pts.points_used : 210
+          const c = ownerColors[o.initials]
+          allDiv.innerHTML += `
+            <div class="owner-pts-row">
+              <span><span class="dot" style="background:${c.dot};"></span>${o.name}</span>
+              <span style="font-weight:500;">${remaining}</span>
+            </div>`
+        })
+      }
+    }
+
+    function showServiceDayModal() {
+      if (selectedDates.length === 0) {
+        alert('Please select a day on the calendar first')
+        return
+      }
+    }
+
+function handleServiceClick(date) {
+      const notesBox = document.getElementById('service-notes')
+      const btn = document.getElementById('service-btn')
+      const bookingActions = document.getElementById('booking-actions')
+      const serviceCancel = document.getElementById('service-cancel-btn')
+      if (notesBox.style.display === 'none') {
+        notesBox.style.display = 'block'
+        notesBox.focus()
+        btn.textContent = 'Confirm Out of Service'
+        if (bookingActions) bookingActions.style.display = 'none'
+        if (serviceCancel) serviceCancel.style.display = 'inline-block'
+      } else {
+        bookServiceDay(date)
+      }
+    }
+
+    async function bookServiceDay(date) {
+      const notes = document.getElementById('service-notes')?.value || ''
+      const res = await fetch(`${API}/api/service-days`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_initials: owner.initials, owner_name: owner.name, date, notes })
+      })
+      const data = await res.json()
+      if (data.error) alert(data.error)
+      else { clearSelectedDay(); loadCalendar() }
+    }
+
+    function calPrev() {
+      calMonth--
+      if (calMonth < 1) { calMonth = 12; calYear-- }
+      selectedDates = []
+      loadCalendar()
+    }
+
+    function calNext() {
+      calMonth++
+      if (calMonth > 12) { calMonth = 1; calYear++ }
+      selectedDates = []
+      loadCalendar()
+    }
+
+    function calToday() {
+      calYear = today.getFullYear()
+      calMonth = today.getMonth() + 1
+      selectedDates = []
+      loadCalendar()
+    }
+
+    function showPage(page, e) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
+      document.getElementById('page-' + page).classList.add('active')
+      if (e) e.currentTarget.classList.add('active')
+      if (page === 'bookings') { initCalendar(); loadUpcomingBookings() }
+     if (page === 'settings') { populateSettingsForm() }
+      if (page === 'logbook') { loadLogbook() }
+    }
+
+let logbookEntries = []
+
+    async function loadLogbook() {
+      try {
+        const res = await fetch(`${API}/api/logbook`)
+        logbookEntries = await res.json()
+      } catch (err) {
+        console.error('Failed to load logbook:', err)
+        logbookEntries = []
+      }
+      renderLogbook()
+    }
+
+    function renderLogbook() {
+      const tbody = document.getElementById('logbook-body')
+      const rate = Number(settings.fuel_price_per_litre) || 0
+      document.getElementById('logbook-fuel-rate').textContent = '$' + rate.toFixed(2) + ' / L'
+
+      const q = (document.getElementById('logbook-search').value || '').toLowerCase().trim()
+      const filtered = logbookEntries.filter(e => {
+        if (!q) return true
+        return [e.skipper_initials, e.skipper_name, e.from_loc, e.to_loc, e.notes]
+          .filter(Boolean).join(' ').toLowerCase().includes(q)
+      })
+      const sorted = [...filtered].sort((a,b) => b.entry_num - a.entry_num)
+
+      if (sorted.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:40px; color:#94a3b8;">No logbook entries yet</td></tr>`
+      } else {
+        tbody.innerHTML = sorted.map(e => {
+          const used = Math.max(0, Number(e.fuel_start) - Number(e.fuel_finish))
+          const costUsed = used * rate
+          const c = ownerColors[e.skipper_initials] || { bg:'#f1f5f9', text:'#475569' }
+          const dateFmt = e.trip_date ? new Date(e.trip_date).toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'2-digit' }) : ''
+          const rtn = e.is_return ? '✓' : ''
+          return `
+            <tr>
+              <td class="lb-num">#${String(e.entry_num).padStart(3,'0')}</td>
+              <td>${dateFmt}</td>
+              <td><span class="lb-chip" style="background:${c.bg}; color:${c.text}">${e.skipper_initials || '?'}</span></td>
+              <td>${e.from_loc || ''}</td>
+              <td>${e.to_loc || ''}</td>
+              <td class="lb-num" style="color:#1a5f7a; font-weight:600;">${rtn}</td>
+              <td class="lb-notes">${e.notes || '<span class="lb-muted">—</span>'}</td>
+              <td class="lb-num lb-sep">${Number(e.fuel_start).toFixed(0)}</td>
+              <td class="lb-num">${Number(e.fuel_finish).toFixed(0)}</td>
+              <td class="lb-num lb-sep"><strong>${used.toFixed(0)}</strong></td>
+              <td class="lb-num"><strong>$${costUsed.toFixed(2)}</strong></td>
+            </tr>`
+        }).join('')
+      }
+    }
+
+    function logbookNextNum() {
+      return logbookEntries.length ? Math.max(...logbookEntries.map(e => Number(e.entry_num) || 0)) + 1 : 1
+    }
+
+    function openLogbookModal() {
+      document.getElementById('logbook-modal').style.display = 'flex'
+      document.getElementById('logbook-next-num').textContent = '#' + String(logbookNextNum()).padStart(3,'0')
+      document.getElementById('lb-f-date').value = new Date().toISOString().slice(0,10)
+      document.getElementById('lb-f-skipper').value = owner.initials
+      ;['lb-f-notes','lb-f-start','lb-f-finish']
+        .forEach(id => document.getElementById(id).value = '')
+      document.getElementById('lb-f-from').value = ''
+      document.getElementById('lb-f-to').value = ''
+      document.getElementById('lb-f-return').checked = false
+      logbookRecalc()
+    }
+
+    function closeLogbookModal() {
+      document.getElementById('logbook-modal').style.display = 'none'
+    }
+
+    function logbookRecalc() {
+      const s = parseFloat(document.getElementById('lb-f-start').value)
+      const f = parseFloat(document.getElementById('lb-f-finish').value)
+      const rate = Number(settings.fuel_price_per_litre) || 0
+      const usedEl = document.getElementById('lb-c-used')
+      const costEl = document.getElementById('lb-c-cost')
+      if (!isNaN(s) && !isNaN(f)) {
+        const used = Math.max(0, s - f)
+        usedEl.textContent = used.toFixed(1) + ' L'
+        costEl.textContent = '$' + (used * rate).toFixed(2)
+      } else {
+        usedEl.textContent = '— L'
+        costEl.textContent = '—'
+      }
+    }
+
+    async function saveLogbookEntry() {
+      const skipperInitials = document.getElementById('lb-f-skipper').value
+      const payload = {
+        entry_num: logbookNextNum(),
+        trip_date: document.getElementById('lb-f-date').value,
+        skipper_initials: skipperInitials,
+        skipper_name: skipperInitials === owner.initials ? owner.name : skipperInitials,
+        from_loc: document.getElementById('lb-f-from').value.trim(),
+        to_loc: document.getElementById('lb-f-to').value.trim(),
+        is_return: document.getElementById('lb-f-return').checked,
+        notes: document.getElementById('lb-f-notes').value.trim(),
+        fuel_start: parseFloat(document.getElementById('lb-f-start').value) || 0,
+        fuel_finish: parseFloat(document.getElementById('lb-f-finish').value) || 0
+      }
+      if (!payload.trip_date || !payload.from_loc || !payload.to_loc) {
+        alert('Please fill in date, from, and to.')
+        return
+      }
+      try {
+        const res = await fetch(`${API}/api/logbook`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        closeLogbookModal()
+        await loadLogbook()
+      } catch (err) {
+        console.error('Failed to save entry:', err)
+        alert('Failed to save entry. Is the server running?')
+      }
+    }
+
+    function switchOwner() {
+      sessionStorage.clear()
+      window.location.href = '/'
+    }
+
+    // On first open, land on Bookings and load the calendar
+    loadSettings()
+    initCalendar()
+    loadUpcomingBookings()
+  </script>
+
+</body>
+</html>

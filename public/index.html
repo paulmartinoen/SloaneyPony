@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sloaney Pony</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      width: 340px;
+      border: 0.5px solid #e2e8f0;
+      text-align: center;
+    }
+    .anchor { font-size: 36px; margin-bottom: 12px; }
+    h1 { font-size: 22px; font-weight: 500; color: #1a5f7a; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #94a3b8; margin-bottom: 32px; }
+    .owner-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .owner-btn {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 12px;
+      cursor: pointer;
+      background: white;
+      transition: all 0.15s;
+    }
+    .owner-btn:hover {
+      border-color: #1a5f7a;
+      background: #f0f9ff;
+    }
+    .owner-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #1a5f7a;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 500;
+      margin: 0 auto 10px;
+    }
+    .owner-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+    .owner-role {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="anchor">⚓</div>
+    <h1>Sloaney Pony</h1>
+    <p class="subtitle">Who are you?</p>
+    <div class="owner-grid">
+      <button class="owner-btn" onclick="login('DR', 'Daniel Righetti')">
+        <div class="owner-avatar">DR</div>
+        <div class="owner-name">Daniel Righetti</div>
+        <div class="owner-role">1/4 owner</div>
+      </button>
+      <button class="owner-btn" onclick="login('LM', 'Larry McIntosh')">
+        <div class="owner-avatar">LM</div>
+        <div class="owner-name">Larry McIntosh</div>
+        <div class="owner-role">1/4 owner</div>
+      </button>
+      <button class="owner-btn" onclick="login('PO', 'Paul Oen')">
+        <div class="owner-avatar">PO</div>
+        <div class="owner-name">Paul Oen</div>
+        <div class="owner-role">1/4 owner</div>
+      </button>
+      <button class="owner-btn" onclick="login('PA', 'Peter Abery')">
+        <div class="owner-avatar">PA</div>
+        <div class="owner-name">Peter Abery</div>
+        <div class="owner-role">1/4 owner</div>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function login(initials, name) {
+      sessionStorage.setItem('owner_initials', initials)
+      sessionStorage.setItem('owner_name', name)
+      window.location.href = '/app.html'
+    }
+  </script>
+</body>
+</html>
