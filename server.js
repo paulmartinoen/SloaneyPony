@@ -648,7 +648,7 @@ app.put('/api/settings', (req, res) => {
   res.json({ success: true, settings: getAllSettings() })
 })
 
-const PORT = 3001
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   convertAdvanceBookings()
   console.log(`Sloaney Pony running at http://localhost:${PORT}`)

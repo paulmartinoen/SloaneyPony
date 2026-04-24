@@ -1,14 +1,7 @@
-# Mac system files
-.DS_Store
-**/.DS_Store
-
-# Database (live data, not for version control)
-data/sloaney.db
-data/*.db
-
-# Node dependencies
 node_modules/
-
-# Uploaded invoice files (managed locally)
-Documents/Invoices/*
-!Documents/Invoices/.gitkeep
+data/
+*.db
+.DS_Store
+app copy.html
+screenshots/
+Documents/

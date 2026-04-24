@@ -1,7 +1,8 @@
 const Database = require('better-sqlite3')
 const path = require('path')
 
-const db = new Database(path.join(__dirname, 'data', 'sloaney.db'))
+const DB_DIR = process.env.DB_DIR || path.join(__dirname, 'data')
+const db = new Database(path.join(DB_DIR, 'sloaney.db'))
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS bookings (
