@@ -275,8 +275,8 @@
 
         <div class="rpt-toolbar">
           <input type="text" class="lb-search rpt-search" id="rpt-search" placeholder="Search" oninput="renderReports()">
-          <button class="cal-nav-btn" style="margin-left:auto;" onclick="alert('Cycle reports coming soon')">View Cycle Reports</button>
-          <button class="orange-btn" onclick="openNewReportModal()">+ New Report</button>
+          <button class="cal-nav-btn" style="margin-left:auto; font-size:19px; padding:9px 21px;" onclick="showMonthlyReport()">Monthly Reports</button>
+          <button class="orange-btn" style="font-size:19px; padding:9px 21px;" onclick="openNewReportModal()">+ New Report</button>
         </div>
 
         <div class="rpt-filters">
@@ -292,6 +292,22 @@
         </div>
 
         <div id="rpt-list"></div>
+
+        <!-- Monthly report sub-view -->
+        <div id="rpt-monthly-view" style="display:none;">
+          <button class="mr-back" onclick="hideMonthlyReport()">← Back to Reports</button>
+          <div style="font-size:28px; font-weight:600; color:#1a5f7a; margin-bottom:4px;">Your Monthly Reports</div>
+          <div style="font-size:13px; color:#94a3b8; margin-bottom:24px;">View Sloaney Pony reports for each month</div>
+
+          <div class="mr-toolbar">
+            <select class="mr-cycle-select" id="mr-month-select" onchange="loadMonthlyReport()"></select>
+            <button class="orange-btn" style="font-size:19px; padding:9px 21px;" onclick="window.print()">Print Report</button>
+          </div>
+
+          <div id="mr-content"></div>
+
+          <div class="mr-footer">For support, please email support@boatequity.com.au</div>
+        </div>
 
         <!-- New report modal -->
         <div class="rpt-modal-bg" id="rpt-modal">
@@ -329,7 +345,96 @@
       <div class="page" id="page-documents">
         <div class="page-title">Documents</div>
         <div class="page-sub">Insurance, agreements, invoices and receipts</div>
-        <div class="placeholder">Documents coming soon</div>
+
+        <!-- Dedicated Documents -->
+        <div class="doc-section-divider">Dedicated Documents</div>
+        <div class="doc-grid" id="doc-dedicated-grid">
+          <div style="color:#94a3b8; font-size:13px;">Loading…</div>
+        </div>
+
+        <!-- Invoices -->
+        <div class="doc-section-divider">Invoices</div>
+        <div class="inv-toolbar">
+          <select class="rpt-type-select" id="inv-year-filter" onchange="renderInvoices()">
+            <option value="">All Years</option>
+          </select>
+          <select class="rpt-type-select" id="inv-cat-filter" onchange="renderInvoices()">
+            <option value="">All Categories</option>
+            <option>Insurance</option>
+            <option>Marina</option>
+            <option>Maintenance</option>
+            <option>Registration</option>
+            <option>Club Fees</option>
+            <option>Fuel</option>
+            <option>Other</option>
+          </select>
+          <span class="inv-total spacer" id="inv-total-display"></span>
+          <button class="orange-btn" onclick="openInvoiceModal()">+ Add Invoice</button>
+        </div>
+        <div class="inv-table-wrap">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Vendor</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Description</th>
+                <th></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Add invoice modal -->
+        <div class="inv-modal-bg" id="inv-modal">
+          <div class="inv-modal">
+            <div class="inv-modal-head">
+              <h2>Add Invoice</h2>
+              <button class="lb-btn" onclick="closeInvoiceModal()">✕</button>
+            </div>
+            <div class="inv-modal-body">
+              <div>
+                <label>Date</label>
+                <input type="date" id="inv-f-date">
+              </div>
+              <div>
+                <label>Vendor / Supplier</label>
+                <input type="text" id="inv-f-vendor" placeholder="e.g. Club Marine">
+              </div>
+              <div>
+                <label>Category</label>
+                <select id="inv-f-category">
+                  <option>Insurance</option>
+                  <option>Marina</option>
+                  <option>Maintenance</option>
+                  <option>Registration</option>
+                  <option>Club Fees</option>
+                  <option>Fuel</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label>Amount ($)</label>
+                <input type="number" id="inv-f-amount" min="0" step="0.01" placeholder="0.00">
+              </div>
+              <div>
+                <label>Description (optional)</label>
+                <textarea id="inv-f-description" placeholder="Brief description…"></textarea>
+              </div>
+              <div>
+                <label>PDF File (optional)</label>
+                <input type="file" id="inv-f-file" accept="application/pdf">
+              </div>
+            </div>
+            <div class="inv-modal-foot">
+              <button class="lb-btn" onclick="closeInvoiceModal()">Cancel</button>
+              <button class="orange-btn" id="inv-submit-btn" onclick="submitInvoice()" style="padding:7px 18px;">Save Invoice</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- SETTINGS -->
@@ -429,10 +534,12 @@
   <script>
     const API = 'http://localhost:3001'
 
-    const owner = {
-      initials: sessionStorage.getItem('owner_initials') || '??',
-      name: sessionStorage.getItem('owner_name') || 'Unknown'
-    }
+    const _initials = sessionStorage.getItem('owner_initials')
+    const _name     = sessionStorage.getItem('owner_name')
+    sessionStorage.removeItem('owner_initials')
+    sessionStorage.removeItem('owner_name')
+    if (!_initials) { window.location.replace('/'); throw new Error('redirect') }
+    const owner = { initials: _initials, name: _name || 'Unknown' }
 
     document.getElementById('topbar-greeting').textContent = 'Hello, ' + owner.name.split(' ')[0]
     document.getElementById('topbar-avatar').textContent = owner.initials
@@ -1109,6 +1216,7 @@ function handleServiceClick(date) {
       if (page === 'settings') { populateSettingsForm() }
       if (page === 'logbook') { loadLogbook() }
       if (page === 'reports') { loadReports() }
+      if (page === 'documents') { loadDedicatedDocs(); loadInvoices() }
     }
 
 let logbookEntries = []
@@ -1252,6 +1360,137 @@ let logbookEntries = []
       } catch (err) {
         console.error('Failed to save entry:', err)
         alert('Failed to save entry. Is the server running?')
+      }
+    }
+
+    // ---- Documents ----
+
+    async function loadDedicatedDocs() {
+      const grid = document.getElementById('doc-dedicated-grid')
+      try {
+        const res = await fetch(`${API}/api/documents/dedicated`)
+        const docs = await res.json()
+        if (!docs.length) {
+          grid.innerHTML = `<div style="color:#94a3b8; font-size:13px;">No documents found. Add files to the Dedicated Documents folder.</div>`
+          return
+        }
+        grid.innerHTML = docs.map(d => `
+          <div class="doc-card">
+            <div class="doc-card-icon">📄</div>
+            <div class="doc-card-name">${d.name}</div>
+            <a class="doc-card-open" href="${d.url}" target="_blank">Open</a>
+          </div>`).join('')
+      } catch (err) {
+        grid.innerHTML = `<div style="color:#94a3b8; font-size:13px;">Failed to load documents.</div>`
+      }
+    }
+
+    let invoicesData = []
+
+    async function loadInvoices() {
+      try {
+        const res = await fetch(`${API}/api/invoices`)
+        invoicesData = await res.json()
+      } catch (err) {
+        invoicesData = []
+      }
+      populateYearFilter()
+      renderInvoices()
+    }
+
+    function populateYearFilter() {
+      const sel = document.getElementById('inv-year-filter')
+      const years = [...new Set(invoicesData.map(i => i.invoice_date.slice(0, 4)))].sort().reverse()
+      const current = sel.value
+      sel.innerHTML = `<option value="">All Years</option>` +
+        years.map(y => `<option${y === current ? ' selected' : ''}>${y}</option>`).join('')
+    }
+
+    function renderInvoices() {
+      const tbody = document.getElementById('inv-tbody')
+      const yearFilter = document.getElementById('inv-year-filter')?.value || ''
+      const catFilter = document.getElementById('inv-cat-filter')?.value || ''
+
+      const filtered = invoicesData.filter(i => {
+        if (yearFilter && !i.invoice_date.startsWith(yearFilter)) return false
+        if (catFilter && i.category !== catFilter) return false
+        return true
+      })
+
+      const total = filtered.reduce((sum, i) => sum + Number(i.amount), 0)
+      const totalEl = document.getElementById('inv-total-display')
+      if (totalEl) totalEl.innerHTML = filtered.length
+        ? `Total: <strong>$${total.toFixed(2)}</strong> (${filtered.length} invoice${filtered.length !== 1 ? 's' : ''})`
+        : ''
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:24px; text-align:center; color:#94a3b8;">No invoices found</td></tr>`
+        return
+      }
+
+      const fmtDate = ds => new Date(ds + 'T12:00:00').toLocaleDateString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+      tbody.innerHTML = filtered.map(i => `
+        <tr>
+          <td>${fmtDate(i.invoice_date)}</td>
+          <td>${i.vendor}</td>
+          <td><span class="inv-category-badge">${i.category}</span></td>
+          <td>$${Number(i.amount).toFixed(2)}</td>
+          <td style="color:#64748b; font-size:13px;">${i.description || '—'}</td>
+          <td>${i.filename ? `<a class="inv-view-btn" href="/documents/Invoices/${encodeURIComponent(i.filename)}" target="_blank">View PDF</a>` : '<span style="color:#cbd5e1; font-size:13px;">No file</span>'}</td>
+          <td><button class="inv-delete-btn" onclick="deleteInvoice(${i.id})" title="Delete">✕</button></td>
+        </tr>`).join('')
+    }
+
+    async function deleteInvoice(id) {
+      if (!confirm('Delete this invoice? This cannot be undone.')) return
+      await fetch(`${API}/api/invoices/${id}`, { method: 'DELETE' })
+      await loadInvoices()
+    }
+
+    function openInvoiceModal() {
+      document.getElementById('inv-modal').style.display = 'flex'
+      document.getElementById('inv-f-date').value = new Date().toISOString().slice(0, 10)
+      document.getElementById('inv-f-vendor').value = ''
+      document.getElementById('inv-f-amount').value = ''
+      document.getElementById('inv-f-description').value = ''
+      document.getElementById('inv-f-file').value = ''
+    }
+
+    function closeInvoiceModal() {
+      document.getElementById('inv-modal').style.display = 'none'
+    }
+
+    async function submitInvoice() {
+      const btn = document.getElementById('inv-submit-btn')
+      const date = document.getElementById('inv-f-date').value
+      const vendor = document.getElementById('inv-f-vendor').value.trim()
+      const category = document.getElementById('inv-f-category').value
+      const amount = document.getElementById('inv-f-amount').value
+      const description = document.getElementById('inv-f-description').value.trim()
+      const file = document.getElementById('inv-f-file').files[0]
+
+      if (!date || !vendor || !amount) { alert('Please fill in date, vendor and amount.'); return }
+
+      const formData = new FormData()
+      formData.append('invoice_date', date)
+      formData.append('vendor', vendor)
+      formData.append('category', category)
+      formData.append('amount', amount)
+      if (description) formData.append('description', description)
+      if (file) formData.append('file', file)
+
+      btn.textContent = 'Saving…'
+      btn.disabled = true
+      try {
+        const res = await fetch(`${API}/api/invoices`, { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        closeInvoiceModal()
+        await loadInvoices()
+      } finally {
+        btn.textContent = 'Save Invoice'
+        btn.disabled = false
       }
     }
 
@@ -1415,6 +1654,107 @@ let logbookEntries = []
       const data = await res.json()
       if (data.error) { alert(data.error); return }
       await loadReports()
+    }
+
+    // ---- Monthly Report ----
+
+    function buildMonthOptions() {
+      const sel = document.getElementById('mr-month-select')
+      if (!sel || sel.options.length > 0) return
+      const now = new Date()
+      for (let i = 0; i < 24; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const year = d.getFullYear()
+        const month = d.getMonth() + 1
+        const last = new Date(year, month, 0)
+        const fmt = d => d.toLocaleDateString('en-AU', { day:'numeric', month:'long', year:'numeric' })
+        const label = `${fmt(d)} - ${fmt(last)}`
+        const opt = document.createElement('option')
+        opt.value = `${year}-${month}`
+        opt.textContent = label
+        sel.appendChild(opt)
+      }
+    }
+
+    async function loadMonthlyReport() {
+      const sel = document.getElementById('mr-month-select')
+      const [year, month] = sel.value.split('-').map(Number)
+      const content = document.getElementById('mr-content')
+      content.innerHTML = '<div style="color:#94a3b8; font-size:13px; padding:20px 0;">Loading…</div>'
+
+      const res = await fetch(`${API}/api/monthly-report/${year}/${month}`)
+      const data = await res.json()
+
+      const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month:'long', year:'numeric' })
+      const $ = n => '$' + Number(n).toFixed(2)
+      const fmtDate = ds => new Date(ds.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+      const pointRows = data.pointUsage.map(p => `
+        <tr>
+          <td>${p.owner_name}</td>
+          <td>${p.points_used}</td>
+          <td>${$(p.excess_due)}</td>
+        </tr>`).join('')
+
+      const logRows = data.logbookEntries.length ? data.logbookEntries.map(e => `
+        <tr>
+          <td>${fmtDate(e.created_at)}</td>
+          <td>${e.skipper_name || e.skipper_initials}</td>
+          <td>${e.entry_num}</td>
+          <td>${fmtDate(e.trip_date)}</td>
+          <td>$${Number(e.rate_per_litre).toFixed(2)}</td>
+          <td>${$(e.fuel_cost)}</td>
+        </tr>`).join('')
+        : `<tr><td colspan="6" style="color:#94a3b8; text-align:center; padding:20px;">No logbook entries this month</td></tr>`
+
+      const totalRows = data.totalCosts.map(t => `
+        <tr>
+          <td>${t.owner_name}</td>
+          <td>${$(t.excess_due)}</td>
+          <td>${$(t.fuel_due)}</td>
+          <td>${$(t.total_cost)}</td>
+        </tr>`).join('')
+
+      content.innerHTML = `
+        <div class="mr-cycle-heading">${monthName} Cycle</div>
+
+        <div class="mr-section-divider">Point Usage</div>
+        <div class="mr-table-wrap">
+          <table class="mr-table">
+            <thead><tr><th>Member</th><th>Total Points Used</th><th>Excess due</th></tr></thead>
+            <tbody>${pointRows}</tbody>
+          </table>
+        </div>
+
+        <div class="mr-section-divider">Logbook Entries</div>
+        <div class="mr-table-wrap">
+          <table class="mr-table">
+            <thead><tr><th>Created Date</th><th>Member</th><th>Logbook Number</th><th>Voyage Date</th><th>Rate Per Litre</th><th>Cost</th></tr></thead>
+            <tbody>${logRows}</tbody>
+          </table>
+        </div>
+
+        <div class="mr-section-divider">Total Costs</div>
+        <div class="mr-table-wrap">
+          <table class="mr-table">
+            <thead><tr><th>Member</th><th>Excess due</th><th>Fuel due</th><th>Total cost</th></tr></thead>
+            <tbody>${totalRows}</tbody>
+          </table>
+        </div>`
+    }
+
+    function showMonthlyReport() {
+      document.getElementById('rpt-main-view') && (document.getElementById('rpt-main-view').style.display = 'none')
+      // wrap the non-modal reports content in a main-view div — handled via toggling children
+      document.querySelectorAll('#page-reports > *:not(#rpt-monthly-view):not(.rpt-modal-bg)').forEach(el => el.style.display = 'none')
+      document.getElementById('rpt-monthly-view').style.display = 'block'
+      buildMonthOptions()
+      loadMonthlyReport()
+    }
+
+    function hideMonthlyReport() {
+      document.getElementById('rpt-monthly-view').style.display = 'none'
+      document.querySelectorAll('#page-reports > *:not(#rpt-monthly-view):not(.rpt-modal-bg)').forEach(el => el.style.display = '')
     }
 
     function openNewReportModal() {

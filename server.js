@@ -1,10 +1,25 @@
 const express = require('express')
 const path = require('path')
+const fs = require('fs')
+const multer = require('multer')
 const { db, ensureStandardPoints, getPointCost, isAdvanceBooking, owners, getSetting, getAllSettings, setSetting } = require('./database')
 
 const app = express()
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
+app.use('/documents', express.static(path.join(__dirname, 'Documents')))
+
+const invoiceUpload = multer({
+  storage: multer.diskStorage({
+    destination: path.join(__dirname, 'Documents', 'Invoices'),
+    filename: (req, file, cb) => {
+      const unique = Date.now() + '-' + Math.round(Math.random() * 1e9)
+      cb(null, unique + path.extname(file.originalname))
+    }
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, file.mimetype === 'application/pdf')
+})
 
 // Get all bookings for a given month
 app.get('/api/bookings/:year/:month', (req, res) => {
@@ -492,6 +507,111 @@ app.post('/api/reports/:id/replies', (req, res) => {
     `INSERT INTO report_replies (report_id, author_initials, author_name, body) VALUES (?, ?, ?, ?)`
   ).run(req.params.id, author_initials, author_name || author_initials, body.trim())
   res.json({ success: true, id: info.lastInsertRowid })
+})
+
+// ---- Documents ----
+
+app.get('/api/documents/dedicated', (req, res) => {
+  const dir = path.join(__dirname, 'Documents', 'Dedicated Documents')
+  try {
+    const files = fs.readdirSync(dir)
+      .filter(f => !f.startsWith('.'))
+      .sort()
+      .map(f => ({
+        name: path.basename(f, path.extname(f)),
+        filename: f,
+        ext: path.extname(f).toLowerCase(),
+        url: `/documents/Dedicated Documents/${encodeURIComponent(f)}`
+      }))
+    res.json(files)
+  } catch (err) {
+    res.json([])
+  }
+})
+
+app.get('/api/invoices', (req, res) => {
+  const invoices = db.prepare(`SELECT * FROM invoices ORDER BY invoice_date DESC, created_at DESC`).all()
+  res.json(invoices)
+})
+
+app.post('/api/invoices', invoiceUpload.single('file'), (req, res) => {
+  const { invoice_date, vendor, category, amount, description } = req.body || {}
+  if (!invoice_date || !vendor || !category || !amount) {
+    if (req.file) fs.unlinkSync(req.file.path)
+    return res.status(400).json({ error: 'invoice_date, vendor, category and amount are required' })
+  }
+  const amt = Number(amount)
+  if (!Number.isFinite(amt) || amt < 0) {
+    if (req.file) fs.unlinkSync(req.file.path)
+    return res.status(400).json({ error: 'amount must be a non-negative number' })
+  }
+  const info = db.prepare(`
+    INSERT INTO invoices (invoice_date, vendor, category, amount, description, filename, original_name)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(invoice_date, vendor.trim(), category, amt, description?.trim() || null,
+        req.file ? req.file.filename : null,
+        req.file ? req.file.originalname : null)
+  res.json({ success: true, id: info.lastInsertRowid })
+})
+
+app.delete('/api/invoices/:id', (req, res) => {
+  const inv = db.prepare(`SELECT * FROM invoices WHERE id = ?`).get(req.params.id)
+  if (!inv) return res.status(404).json({ error: 'Invoice not found' })
+  if (inv.filename) {
+    const filePath = path.join(__dirname, 'Documents', 'Invoices', inv.filename)
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+  }
+  db.prepare(`DELETE FROM invoices WHERE id = ?`).run(req.params.id)
+  res.json({ success: true })
+})
+
+// ---- Monthly Report ----
+
+app.get('/api/monthly-report/:year/:month', (req, res) => {
+  const year = parseInt(req.params.year)
+  const month = parseInt(req.params.month)
+
+  ensureStandardPoints(year, month)
+
+  const excessCostPerPoint = Number(db.prepare(`SELECT value FROM settings WHERE key = 'excess_cost_per_point'`).get()?.value || 5)
+  const fuelPricePerLitre = Number(db.prepare(`SELECT value FROM settings WHERE key = 'fuel_price_per_litre'`).get()?.value || 3.35)
+
+  const standardPoints = db.prepare(`
+    SELECT * FROM standard_points WHERE year = ? AND month = ?
+  `).all(year, month)
+
+  const pointUsage = owners.map(o => {
+    const sp = standardPoints.find(p => p.owner_initials === o.initials) || { points_used: 0, points_allocated: 210 }
+    const excessPoints = Math.max(0, sp.points_used - sp.points_allocated)
+    return {
+      owner_initials: o.initials,
+      owner_name: o.name,
+      points_used: sp.points_used,
+      points_allocated: sp.points_allocated,
+      excess_points: excessPoints,
+      excess_due: excessPoints * excessCostPerPoint
+    }
+  })
+
+  const logbookEntries = db.prepare(`
+    SELECT * FROM logbook
+    WHERE strftime('%Y', trip_date) = ? AND strftime('%m', trip_date) = ?
+    ORDER BY entry_num ASC
+  `).all(String(year), String(month).padStart(2, '0'))
+
+  const enrichedEntries = logbookEntries.map(e => {
+    const fuelUsed = Math.max(0, Number(e.fuel_start) - Number(e.fuel_finish))
+    return { ...e, fuel_used: fuelUsed, fuel_cost: fuelUsed * fuelPricePerLitre, rate_per_litre: fuelPricePerLitre }
+  })
+
+  const totalCosts = pointUsage.map(pu => {
+    const fuelDue = enrichedEntries
+      .filter(e => e.skipper_initials === pu.owner_initials)
+      .reduce((sum, e) => sum + e.fuel_cost, 0)
+    return { owner_initials: pu.owner_initials, owner_name: pu.owner_name, excess_due: pu.excess_due, fuel_due: fuelDue, total_cost: pu.excess_due + fuelDue }
+  })
+
+  res.json({ year, month, fuelPricePerLitre, excessCostPerPoint, pointUsage, logbookEntries: enrichedEntries, totalCosts })
 })
 
 // ---- Settings ----

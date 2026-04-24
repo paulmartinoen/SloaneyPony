@@ -66,6 +66,18 @@ CREATE TABLE IF NOT EXISTS logbook (
     created_at TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS invoices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_date TEXT NOT NULL,
+    vendor TEXT NOT NULL,
+    category TEXT NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT,
+    filename TEXT,
+    original_name TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT NOT NULL DEFAULT 'service',
