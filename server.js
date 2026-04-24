@@ -437,6 +437,63 @@ app.post('/api/logbook', (req, res) => {
   res.json({ success: true, entry_num: info.lastInsertRowid })
 })
 
+// ---- Reports ----
+
+app.get('/api/reports', (req, res) => {
+  const reports = db.prepare(`SELECT * FROM reports ORDER BY report_date DESC, created_at DESC`).all()
+  const replies = db.prepare(`SELECT * FROM report_replies ORDER BY created_at ASC`).all()
+  const replyMap = {}
+  for (const r of replies) {
+    if (!replyMap[r.report_id]) replyMap[r.report_id] = []
+    replyMap[r.report_id].push(r)
+  }
+  res.json(reports.map(r => ({ ...r, replies: replyMap[r.id] || [] })))
+})
+
+app.post('/api/reports', (req, res) => {
+  const { type, author_initials, author_name, body, report_date } = req.body || {}
+  if (!type || !author_initials || !body || !report_date) {
+    return res.status(400).json({ error: 'type, author_initials, body and report_date are required' })
+  }
+  if (!['service', 'damage'].includes(type)) {
+    return res.status(400).json({ error: 'type must be service or damage' })
+  }
+  const info = db.prepare(
+    `INSERT INTO reports (type, author_initials, author_name, body, report_date) VALUES (?, ?, ?, ?, ?)`
+  ).run(type, author_initials, author_name || author_initials, body.trim(), report_date)
+  res.json({ success: true, id: info.lastInsertRowid })
+})
+
+app.put('/api/reports/:id', (req, res) => {
+  const { body, author_initials } = req.body || {}
+  const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(req.params.id)
+  if (!report) return res.status(404).json({ error: 'Report not found' })
+  if (report.author_initials !== author_initials) return res.status(403).json({ error: 'Cannot edit another owner\'s report' })
+  if (!body || !body.trim()) return res.status(400).json({ error: 'body is required' })
+  db.prepare(`UPDATE reports SET body = ? WHERE id = ?`).run(body.trim(), req.params.id)
+  res.json({ success: true })
+})
+
+app.put('/api/reports/:id/complete', (req, res) => {
+  const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(req.params.id)
+  if (!report) return res.status(404).json({ error: 'Report not found' })
+  db.prepare(`UPDATE reports SET status = 'complete' WHERE id = ?`).run(req.params.id)
+  res.json({ success: true })
+})
+
+app.post('/api/reports/:id/replies', (req, res) => {
+  const { author_initials, author_name, body } = req.body || {}
+  if (!author_initials || !body || !body.trim()) {
+    return res.status(400).json({ error: 'author_initials and body are required' })
+  }
+  const report = db.prepare(`SELECT id FROM reports WHERE id = ?`).get(req.params.id)
+  if (!report) return res.status(404).json({ error: 'Report not found' })
+  const info = db.prepare(
+    `INSERT INTO report_replies (report_id, author_initials, author_name, body) VALUES (?, ?, ?, ?)`
+  ).run(req.params.id, author_initials, author_name || author_initials, body.trim())
+  res.json({ success: true, id: info.lastInsertRowid })
+})
+
 // ---- Settings ----
 app.get('/api/settings', (req, res) => {
 

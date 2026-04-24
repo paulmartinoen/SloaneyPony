@@ -272,7 +272,57 @@
       <div class="page" id="page-reports">
         <div class="page-title">Reports</div>
         <div class="page-sub">Keeping reports up to date keeps everyone safe</div>
-        <div class="placeholder">Reports coming soon</div>
+
+        <div class="rpt-toolbar">
+          <input type="text" class="lb-search rpt-search" id="rpt-search" placeholder="Search" oninput="renderReports()">
+          <button class="cal-nav-btn" style="margin-left:auto;" onclick="alert('Cycle reports coming soon')">View Cycle Reports</button>
+          <button class="orange-btn" onclick="openNewReportModal()">+ New Report</button>
+        </div>
+
+        <div class="rpt-filters">
+          <select class="rpt-type-select" id="rpt-type-filter" onchange="renderReports()">
+            <option value="">All</option>
+            <option value="service">Service</option>
+            <option value="damage">Damage</option>
+          </select>
+          <select class="rpt-sort-select" id="rpt-sort" onchange="renderReports()">
+            <option value="latest">Latest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
+
+        <div id="rpt-list"></div>
+
+        <!-- New report modal -->
+        <div class="rpt-modal-bg" id="rpt-modal">
+          <div class="rpt-modal">
+            <div class="rpt-modal-head">
+              <h2>New Report</h2>
+              <button class="lb-btn" onclick="closeNewReportModal()">✕</button>
+            </div>
+            <div class="rpt-modal-body">
+              <div>
+                <label>Report Type</label>
+                <select id="rpt-f-type">
+                  <option value="service">Service Report</option>
+                  <option value="damage">Damage Report</option>
+                </select>
+              </div>
+              <div>
+                <label>Date</label>
+                <input type="date" id="rpt-f-date">
+              </div>
+              <div>
+                <label>Details</label>
+                <textarea id="rpt-f-body" placeholder="Describe the issue…"></textarea>
+              </div>
+            </div>
+            <div class="rpt-modal-foot">
+              <button class="lb-btn" onclick="closeNewReportModal()">Cancel</button>
+              <button class="orange-btn" onclick="submitNewReport()" style="padding:7px 18px;">Submit Report</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- DOCUMENTS -->
@@ -1056,8 +1106,9 @@ function handleServiceClick(date) {
       document.getElementById('page-' + page).classList.add('active')
       if (e) e.currentTarget.classList.add('active')
       if (page === 'bookings') { initCalendar(); loadUpcomingBookings() }
-     if (page === 'settings') { populateSettingsForm() }
+      if (page === 'settings') { populateSettingsForm() }
       if (page === 'logbook') { loadLogbook() }
+      if (page === 'reports') { loadReports() }
     }
 
 let logbookEntries = []
@@ -1207,6 +1258,189 @@ let logbookEntries = []
     function switchOwner() {
       sessionStorage.clear()
       window.location.href = '/'
+    }
+
+    // ---- Reports ----
+
+    let reportsData = []
+
+    async function loadReports() {
+      try {
+        const res = await fetch(`${API}/api/reports`)
+        reportsData = await res.json()
+      } catch (err) {
+        console.error('Failed to load reports:', err)
+        reportsData = []
+      }
+      renderReports()
+    }
+
+    function renderReports() {
+      const list = document.getElementById('rpt-list')
+      if (!list) return
+
+      const q = (document.getElementById('rpt-search')?.value || '').toLowerCase().trim()
+      const typeFilter = document.getElementById('rpt-type-filter')?.value || ''
+      const sort = document.getElementById('rpt-sort')?.value || 'latest'
+
+      let filtered = reportsData.filter(r => {
+        if (typeFilter && r.type !== typeFilter) return false
+        if (q) {
+          const hay = [r.author_name, r.body, r.type, ...(r.replies || []).map(x => x.body)].join(' ').toLowerCase()
+          if (!hay.includes(q)) return false
+        }
+        return true
+      })
+
+      filtered = [...filtered].sort((a, b) =>
+        sort === 'oldest'
+          ? a.report_date.localeCompare(b.report_date) || a.id - b.id
+          : b.report_date.localeCompare(a.report_date) || b.id - a.id
+      )
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="placeholder">No reports yet</div>`
+        return
+      }
+
+      const suffix = n => { const s=['th','st','nd','rd'], v=n%100; return n + (s[(v-20)%10]||s[v]||s[0]) }
+      const fmtDate = ds => {
+        const d = new Date(ds + 'T12:00:00')
+        return suffix(d.getDate()) + ' ' + d.toLocaleDateString('default', { month:'short', year:'numeric' })
+      }
+      const fmtMonth = ds => new Date(ds + 'T12:00:00').toLocaleDateString('default', { month:'long', year:'numeric' })
+
+      let html = ''
+      let lastMonth = ''
+
+      for (const r of filtered) {
+        const month = fmtMonth(r.report_date)
+        if (month !== lastMonth) {
+          html += `<div class="rpt-month-divider">${month}</div>`
+          lastMonth = month
+        }
+
+        const c = ownerColors[r.author_initials] || { bg:'#f1f5f9', text:'#475569' }
+        const isOwn = r.author_initials === owner.initials
+        const isComplete = r.status === 'complete'
+        const typeLabel = r.type === 'damage' ? 'Damage Report' : 'Service Report'
+
+        const editBtn = isOwn && !isComplete
+          ? `<button class="rpt-card-edit" title="Edit" onclick="startEditReport(${r.id})">✏️</button>`
+          : ''
+
+        const actionBtn = isComplete
+          ? `<span class="rpt-complete-badge">✓ Complete</span>`
+          : `<button class="orange-btn" style="white-space:nowrap;" onclick="markComplete(${r.id})">Mark as Complete</button>`
+
+        const repliesHtml = (r.replies || []).map(rep => {
+          const rc = ownerColors[rep.author_initials] || { bg:'#f1f5f9', text:'#475569' }
+          return `
+            <div class="rpt-reply-item">
+              <div class="rpt-reply-avatar" style="background:${rc.bg}; color:${rc.text};">${rep.author_initials}</div>
+              <div>
+                <div class="rpt-reply-meta">${rep.author_name} · ${fmtDate(rep.created_at.slice(0,10))}</div>
+                <div class="rpt-reply-body">${rep.body}</div>
+              </div>
+            </div>`
+        }).join('')
+
+        html += `
+          <div class="rpt-card" id="rpt-card-${r.id}">
+            <div class="rpt-card-main">
+              <div class="rpt-card-avatar" style="background:${c.bg}; color:${c.text};">${r.author_initials}</div>
+              <div class="rpt-card-body">
+                <div class="rpt-card-header">
+                  <span class="rpt-card-type">${typeLabel}</span>
+                  <span class="rpt-card-date">${fmtDate(r.report_date)}</span>
+                  ${editBtn}
+                </div>
+                <div class="rpt-card-text" id="rpt-text-${r.id}">${r.body}</div>
+                <div id="rpt-edit-actions-${r.id}" style="display:none; margin-top:8px; display:none; gap:8px;">
+                  <button class="orange-btn" style="padding:5px 14px;" onclick="saveEditReport(${r.id})">Save</button>
+                  <button class="lb-btn" onclick="cancelEditReport(${r.id})">Cancel</button>
+                </div>
+              </div>
+              <div class="rpt-card-actions">${actionBtn}</div>
+            </div>
+            ${repliesHtml ? `<div class="rpt-card-replies">${repliesHtml}</div>` : ''}
+            <div class="rpt-reply-form">
+              <input class="rpt-reply-input" id="rpt-reply-${r.id}" type="text" placeholder="Add a Reply">
+              <button class="lb-btn" onclick="submitReply(${r.id})">Submit</button>
+            </div>
+          </div>`
+      }
+
+      list.innerHTML = html
+    }
+
+    async function markComplete(id) {
+      await fetch(`${API}/api/reports/${id}/complete`, { method: 'PUT' })
+      await loadReports()
+    }
+
+    async function submitReply(id) {
+      const input = document.getElementById(`rpt-reply-${id}`)
+      const body = input?.value.trim()
+      if (!body) return
+      await fetch(`${API}/api/reports/${id}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author_initials: owner.initials, author_name: owner.name, body })
+      })
+      input.value = ''
+      await loadReports()
+    }
+
+    function startEditReport(id) {
+      const textEl = document.getElementById(`rpt-text-${id}`)
+      const actionsEl = document.getElementById(`rpt-edit-actions-${id}`)
+      const current = textEl.textContent
+      textEl.innerHTML = `<textarea id="rpt-edit-ta-${id}">${current}</textarea>`
+      actionsEl.style.display = 'flex'
+    }
+
+    function cancelEditReport(id) {
+      loadReports()
+    }
+
+    async function saveEditReport(id) {
+      const body = document.getElementById(`rpt-edit-ta-${id}`)?.value.trim()
+      if (!body) return
+      const res = await fetch(`${API}/api/reports/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author_initials: owner.initials, body })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadReports()
+    }
+
+    function openNewReportModal() {
+      document.getElementById('rpt-modal').style.display = 'flex'
+      document.getElementById('rpt-f-date').value = new Date().toISOString().slice(0, 10)
+      document.getElementById('rpt-f-body').value = ''
+    }
+
+    function closeNewReportModal() {
+      document.getElementById('rpt-modal').style.display = 'none'
+    }
+
+    async function submitNewReport() {
+      const type = document.getElementById('rpt-f-type').value
+      const report_date = document.getElementById('rpt-f-date').value
+      const body = document.getElementById('rpt-f-body').value.trim()
+      if (!body) { alert('Please enter report details.'); return }
+      const res = await fetch(`${API}/api/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, author_initials: owner.initials, author_name: owner.name, body, report_date })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      closeNewReportModal()
+      await loadReports()
     }
 
     // On first open, land on Bookings and load the calendar
