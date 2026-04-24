@@ -64,7 +64,7 @@ body.app {
   overflow: hidden;
 }
 .sidebar {
-  width: 110px;
+  width: 130px;
   background: #1a5f7a;
   display: flex;
   flex-direction: column;
@@ -79,19 +79,19 @@ body.app {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 8px;
+  padding: 16px 8px;
   border-radius: 8px;
   cursor: pointer;
-  width: 98px;
+  width: 118px;
   color: rgba(255,255,255,0.65);
-  font-size: 15px;
+  font-size: 14px;
   border: none;
   background: none;
   transition: background 0.15s;
 }
-.nav-item.active { background: #e8851a; color: white; }
+.nav-item.active { background: #fde8d0; color: #c4620a; }
 .nav-item:hover:not(.active) { background: rgba(255,255,255,0.1); color: white; }
-.nav-icon { font-size: 20px; }
+.nav-icon { font-size: 30px; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .topbar {
   background: white;
