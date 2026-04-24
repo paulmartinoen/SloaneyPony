@@ -452,6 +452,24 @@ app.post('/api/logbook', (req, res) => {
   res.json({ success: true, entry_num: info.lastInsertRowid })
 })
 
+app.put('/api/logbook/:entry_num', (req, res) => {
+  const { trip_date, skipper_initials, skipper_name, from_loc, to_loc, notes, fuel_start, fuel_finish } = req.body || {}
+  if (!trip_date || !skipper_initials || !from_loc || !to_loc) {
+    return res.status(400).json({ error: 'trip_date, skipper_initials, from_loc and to_loc are required' })
+  }
+  const start = Number(fuel_start)
+  const finish = Number(fuel_finish)
+  if (!Number.isFinite(start) || start < 0 || !Number.isFinite(finish) || finish < 0) {
+    return res.status(400).json({ error: 'fuel values must be non-negative numbers' })
+  }
+  const result = db.prepare(`
+    UPDATE logbook SET trip_date=?, skipper_initials=?, skipper_name=?, from_loc=?, to_loc=?, notes=?, fuel_start=?, fuel_finish=?
+    WHERE entry_num=?
+  `).run(trip_date, skipper_initials, skipper_name || null, from_loc, to_loc, notes || null, start, finish, req.params.entry_num)
+  if (result.changes === 0) return res.status(404).json({ error: 'Entry not found' })
+  res.json({ success: true })
+})
+
 // ---- Reports ----
 
 app.get('/api/reports', (req, res) => {

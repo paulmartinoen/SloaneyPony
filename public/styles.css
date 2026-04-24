@@ -83,13 +83,13 @@ body.app {
   border-radius: 8px;
   cursor: pointer;
   width: 118px;
-  color: rgba(255,255,255,0.65);
+  color: white;
   font-size: 14px;
   border: none;
   background: none;
   transition: background 0.15s;
 }
-.nav-item.active { background: #fde8d0; color: #c4620a; }
+.nav-item.active { background: #fde8d0; color: #1e293b; }
 .nav-item:hover:not(.active) { background: rgba(255,255,255,0.1); color: white; }
 .nav-icon { font-size: 30px; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -126,7 +126,7 @@ body.app {
 
 /* ── Calendar ── */
 .cal-hdr { text-align:center; padding:8px; font-size:11px; color:#94a3b8; font-weight:500; }
-.cal-cell { border-right:0.5px solid #e2e8f0; border-bottom:0.5px solid #e2e8f0; padding:6px; min-height:70px; cursor:pointer; position:relative; }
+.cal-cell { border-right:0.5px solid #e2e8f0; border-bottom:0.5px solid #e2e8f0; padding:6px; min-height:100px; cursor:pointer; position:relative; }
 .cal-cell:hover { background:#f8fafc; }
 .cal-cell.other-month { background:#fafafa; cursor:default; }
 .cal-cell.today { background:#e8edf0; }
@@ -163,7 +163,7 @@ body.app {
 }
 .rpt-month-divider {
   display:flex; align-items:center; gap:16px;
-  margin:24px 0 16px; font-size:14px; font-weight:500; color:#1a5f7a;
+  margin:24px 0 16px; font-size:28px; font-weight:500; color:#1a5f7a;
 }
 .rpt-month-divider::before, .rpt-month-divider::after {
   content:''; flex:1; height:0.5px; background:#e2e8f0;
@@ -176,47 +176,48 @@ body.app {
   display:flex; gap:16px; align-items:flex-start; padding:20px;
 }
 .rpt-card-avatar {
-  width:44px; height:44px; border-radius:50%; flex-shrink:0;
+  width:88px; height:88px; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  font-size:13px; font-weight:600;
+  font-size:26px; font-weight:600;
 }
 .rpt-card-body { flex:1; min-width:0; }
 .rpt-card-header {
   display:flex; align-items:center; gap:8px;
-  font-size:13px; font-weight:600; color:#1e293b; margin-bottom:6px;
+  font-size:26px; font-weight:600; color:#1e293b; margin-bottom:6px;
 }
 .rpt-card-type { color:#1a5f7a; }
 .rpt-card-date { color:#94a3b8; font-weight:400; }
-.rpt-card-edit { background:none; border:none; cursor:pointer; color:#94a3b8; padding:0; font-size:14px; line-height:1; }
+.rpt-card-edit { background:none; border:none; cursor:pointer; color:#94a3b8; padding:0; font-size:26px; line-height:1; }
 .rpt-card-edit:hover { color:#1a5f7a; }
-.rpt-card-text { font-size:13px; color:#475569; line-height:1.6; }
+.rpt-card-text { font-size:26px; color:#475569; line-height:1.6; }
 .rpt-card-text textarea {
-  width:100%; font-family:inherit; font-size:13px; color:#475569;
+  width:100%; font-family:inherit; font-size:26px; color:#475569;
   border:0.5px solid #1a5f7a; border-radius:6px; padding:8px;
   resize:vertical; outline:none; line-height:1.6; min-height:80px;
 }
 .rpt-card-actions { display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0; }
-.rpt-complete-badge { font-size:12px; color:#16a34a; font-weight:500; padding:6px 14px; }
+.rpt-card-actions .orange-btn { font-size:26px; padding:10px 20px; }
+.rpt-complete-badge { font-size:24px; color:#16a34a; font-weight:500; padding:6px 14px; }
 .rpt-card-replies { border-top:0.5px solid #f0f4f6; }
 .rpt-reply-item {
   display:flex; gap:12px; align-items:flex-start;
   padding:12px 20px; border-bottom:0.5px solid #f0f4f6;
-  font-size:13px;
+  font-size:26px;
 }
 .rpt-reply-item:last-child { border-bottom:none; }
 .rpt-reply-avatar {
-  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  width:60px; height:60px; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
-  font-size:11px; font-weight:600;
+  font-size:22px; font-weight:600;
 }
-.rpt-reply-meta { font-size:11px; color:#94a3b8; margin-bottom:2px; }
+.rpt-reply-meta { font-size:22px; color:#94a3b8; margin-bottom:2px; }
 .rpt-reply-body { color:#475569; line-height:1.5; }
 .rpt-reply-form {
   display:flex; gap:10px; align-items:center; padding:12px 20px;
   border-top:0.5px solid #f0f4f6;
 }
 .rpt-reply-input {
-  flex:1; font-family:inherit; font-size:13px; padding:8px 10px;
+  flex:1; font-family:inherit; font-size:26px; padding:8px 10px;
   border:0.5px solid #e2e8f0; border-radius:6px; outline:none; color:#1e293b;
 }
 .rpt-reply-input:focus { border-color:#1a5f7a; }

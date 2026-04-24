@@ -42,7 +42,7 @@
 
   <div class="main">
     <div class="topbar">
-      <div style="font-size:32px; color:#64748b;">Sloaney Pony</div>
+      <div style="font-size:32px; color:#1e293b;">Sloaney Pony</div>
       <div class="topbar-right">
         <span id="topbar-greeting">Hello</span>
         <div class="avatar" id="topbar-avatar">??</div>
@@ -60,10 +60,10 @@
             <img src="images/boat.jpeg" alt="Sloaney Pony" style="width:100%; border-radius:12px; border:0.5px solid #e2e8f0;">
           </div>
           <div style="background:white; border-radius:12px; border:0.5px solid #e2e8f0; padding:24px;">
-            <div style="font-size:16px; font-weight:500; color:#1a5f7a; margin-bottom:16px;">Boat Details</div>
-            <table style="width:100%; font-size:14px; border-collapse:collapse;">
+            <div style="font-size:19px; font-weight:500; color:#1a5f7a; margin-bottom:16px;">Boat Details</div>
+            <table style="width:100%; font-size:17px; border-collapse:collapse;">
               <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Boat Name</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">Sloaney Pony</td></tr>
-              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Boat Location</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">Royal Freshwater Bay Yacht Club</td></tr>
+              <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Boat Location</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">RFBYC</td></tr>
               <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Mooring Location</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">TB 009</td></tr>
               <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">Registration No</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">GV358</td></tr>
               <tr><td style="color:#94a3b8; padding:8px 0; border-bottom:0.5px solid #f0f4f6;">HIN #</td><td style="padding:8px 0; border-bottom:0.5px solid #f0f4f6; text-align:right;">AU-RVA36039D717</td></tr>
@@ -78,16 +78,14 @@
 
       <!-- BOOKINGS -->
       <div class="page active" id="page-bookings">
-        <div class="page-title">Bookings</div>
-       
         <div style="display:grid; grid-template-columns:2fr 1fr; gap:20px; max-width:1200px;">
           <div>
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
               <div style="display:flex; align-items:center; gap:12px;">
-                <button class="cal-nav-btn" onclick="calPrev()">← Prev</button>
-                <span id="cal-month-label" style="font-size:16px; font-weight:500; min-width:140px; text-align:center;"></span>
-                <button class="cal-nav-btn" onclick="calNext()">Next →</button>
-                <button class="cal-nav-btn" onclick="calToday()">Today</button>
+                <button class="cal-nav-btn" style="font-size:19px; padding:9px 18px;" onclick="calPrev()">← Previous Month</button>
+                <span id="cal-month-label" style="font-size:24px; font-weight:500; min-width:200px; text-align:center;"></span>
+                <button class="cal-nav-btn" style="font-size:19px; padding:9px 18px;" onclick="calNext()">Next Month →</button>
+                <button class="cal-nav-btn" style="font-size:19px; padding:9px 18px;" onclick="calToday()">Today</button>
               </div>
               
             </div>
@@ -107,12 +105,15 @@
 
           <div style="display:flex; flex-direction:column; gap:12px;">
             <div class="side-card">
-              <div class="side-card-title">Your points</div>
-              <div id="my-points-display" style="font-size:28px; font-weight:500; color:#1a5f7a;">—</div>
-             <div id="my-points-sub" style="font-size:12px; color:#475569; margin-top:2px;">of 210 remaining</div>
-              <div id="my-advance-display" style="font-size:20px; font-weight:500; color:#e8851a; margin-top:10px;">—</div>
-              <div id="my-advance-sub" style="font-size:12px; color:#475569;">of 210 remaining</div>
-              <div id="my-excess-owed" style="font-size:14px; color:#e8851a; margin-top:10px; display:none;"></div>
+              <div class="side-card-title" id="points-card-title" style="font-size:14px;">April Points</div>
+              <div id="my-points-display" style="font-size:34px; font-weight:500; color:#1a5f7a;">—</div>
+              <div id="my-points-sub" style="font-size:14px; color:#475569; margin-top:2px;">of 210 remaining</div>
+              <div id="my-excess-owed" style="font-size:17px; color:#e8851a; margin-top:10px; display:none;"></div>
+              <div style="margin-top:20px; padding-top:16px; border-top:0.5px solid #f0f4f6;">
+                <div class="side-card-title" style="font-size:14px;">Advance Credits</div>
+                <div id="my-advance-display" style="font-size:24px; font-weight:500; color:#e8851a;">—</div>
+                <div id="my-advance-sub" style="font-size:14px; color:#475569;">of 210 remaining</div>
+              </div>
             </div>
            
             <div class="side-card" id="booking-panel">
@@ -197,12 +198,11 @@
 
      <!-- LOG BOOK -->
       <div class="page" id="page-logbook">
-        <div class="page-title">Log Book</div>
-        <div class="page-sub">Record your travel dates and fuel usage</div>
+        <div class="page-title">Record your travel dates and fuel usage</div>
 
         <div class="lb-toolbar">
-          <button class="orange-btn" onclick="openLogbookModal()" style="padding:7px 16px;">+ New Log</button>
-          <span class="lb-rate">Fuel rate: <strong id="logbook-fuel-rate">$3.35 / L</strong></span>
+          <button class="orange-btn" onclick="openLogbookModal()" style="font-size:19px; padding:9px 21px;">+ New Log Entry</button>
+          <span class="lb-rate" style="font-size:19px;">Fuel rate: <strong id="logbook-fuel-rate">$3.35 / L</strong></span>
           <div class="spacer"></div>
           <input id="logbook-search" class="lb-search" type="text" placeholder="Filter by skipper, place, or note…" oninput="renderLogbook()">
         </div>
@@ -213,7 +213,7 @@
         <div class="lb-modal-bg" id="logbook-modal">
           <div class="lb-modal">
             <div class="lb-modal-head">
-              <h2>New Log Book Entry</h2>
+              <h2 id="logbook-modal-title">New Log Book Entry</h2>
               <span class="lb-tag" id="logbook-next-num">#001</span>
             </div>
             <div class="lb-modal-body">
@@ -271,26 +271,22 @@
 
       <!-- REPORTS -->
       <div class="page" id="page-reports">
-        <div class="page-title">Reports</div>
-        <div class="page-sub">Keeping reports up to date keeps everyone safe</div>
+        <div class="page-title">Report your problems or damage here</div>
 
         <div class="rpt-toolbar">
-          <input type="text" class="lb-search rpt-search" id="rpt-search" placeholder="Search" oninput="renderReports()">
-          <button class="cal-nav-btn" style="margin-left:auto; font-size:19px; padding:9px 21px;" onclick="showMonthlyReport()">Monthly Reports</button>
-          <button class="orange-btn" style="font-size:19px; padding:9px 21px;" onclick="openNewReportModal()">+ New Report</button>
-        </div>
-
-        <div class="rpt-filters">
-          <select class="rpt-type-select" id="rpt-type-filter" onchange="renderReports()">
+          <select class="rpt-type-select" id="rpt-type-filter" onchange="renderReports()" style="font-size:19px; padding:9px 36px 9px 18px;">
             <option value="">All</option>
             <option value="service">Service</option>
             <option value="damage">Damage</option>
           </select>
-          <select class="rpt-sort-select" id="rpt-sort" onchange="renderReports()">
-            <option value="latest">Latest</option>
-            <option value="oldest">Oldest</option>
-          </select>
+          <button class="cal-nav-btn" style="margin-left:auto; font-size:19px; padding:9px 21px;" onclick="showMonthlyReport()">Monthly Reports</button>
+          <button class="orange-btn" style="font-size:19px; padding:9px 21px;" onclick="openNewReportModal()">+ New Report Entry</button>
         </div>
+
+        <select id="rpt-sort" style="display:none;">
+          <option value="latest">Latest</option>
+          <option value="oldest">Oldest</option>
+        </select>
 
         <div id="rpt-list"></div>
 
@@ -344,11 +340,10 @@
 
       <!-- DOCUMENTS -->
       <div class="page" id="page-documents">
-        <div class="page-title">Documents</div>
-        <div class="page-sub">Insurance, agreements, invoices and receipts</div>
+        <div class="page-title">We store our documents here</div>
 
-        <!-- Dedicated Documents -->
-        <div class="doc-section-divider">Dedicated Documents</div>
+        <!-- Important Documents -->
+        <div class="doc-section-divider">Important Documents</div>
         <div class="doc-grid" id="doc-dedicated-grid">
           <div style="color:#94a3b8; font-size:13px;">Loading…</div>
         </div>
@@ -1076,6 +1071,9 @@ function clearSelectedDay() {
       const monthName = new Date(calYear, calMonth - 1, 1)
         .toLocaleString('default', { month: 'long' })
 
+      const titleEl = document.getElementById('points-card-title')
+      if (titleEl) titleEl.textContent = monthName + ' Points'
+
       // Work out what the selection would cost, split by cycle type
       const holidayDates = new Set(calData.holidays.map(h => h.date))
       const today60 = new Date()
@@ -1262,6 +1260,7 @@ let logbookEntries = []
         return `
           <div class="lb-entry">
             <div class="lb-entry-ribbon">#${e.entry_num}</div>
+            <button onclick="openEditLogModal(${e.entry_num})" style="position:absolute; top:32px; right:0; background:none; border:none; cursor:pointer; font-size:12px; font-weight:600; color:#1a5f7a; padding:4px 14px; text-decoration:underline;">Edit Log Entry</button>
             <div class="lb-entry-head">
               <div class="lb-entry-skipper">
                 <span class="lb-chip-lg" style="background:${c.bg}; color:${c.text}; border:1.5px solid ${c.text};">${e.skipper_initials || '?'}</span>
@@ -1293,12 +1292,15 @@ let logbookEntries = []
       }).join('')
     }
 
+    let editingEntryNum = null
+
     function logbookNextNum() {
       return logbookEntries.length ? Math.max(...logbookEntries.map(e => Number(e.entry_num) || 0)) + 1 : 1
     }
 
     function openLogbookModal() {
-      document.getElementById('logbook-modal').style.display = 'flex'
+      editingEntryNum = null
+      document.getElementById('logbook-modal-title').textContent = 'New Log Book Entry'
       document.getElementById('logbook-next-num').textContent = '#' + String(logbookNextNum()).padStart(3,'0')
       document.getElementById('lb-f-date').value = new Date().toISOString().slice(0,10)
       document.getElementById('lb-f-skipper').value = owner.initials
@@ -1306,12 +1308,30 @@ let logbookEntries = []
         .forEach(id => document.getElementById(id).value = '')
       document.getElementById('lb-f-from').value = ''
       document.getElementById('lb-f-to').value = ''
-  
+      document.getElementById('logbook-modal').style.display = 'flex'
+      logbookRecalc()
+    }
+
+    function openEditLogModal(entryNum) {
+      const e = logbookEntries.find(x => x.entry_num === entryNum)
+      if (!e) return
+      editingEntryNum = entryNum
+      document.getElementById('logbook-modal-title').textContent = 'Edit Log Book Entry'
+      document.getElementById('logbook-next-num').textContent = '#' + String(entryNum).padStart(3,'0')
+      document.getElementById('lb-f-date').value = e.trip_date
+      document.getElementById('lb-f-skipper').value = e.skipper_initials
+      document.getElementById('lb-f-from').value = e.from_loc
+      document.getElementById('lb-f-to').value = e.to_loc
+      document.getElementById('lb-f-notes').value = e.notes || ''
+      document.getElementById('lb-f-start').value = e.fuel_start
+      document.getElementById('lb-f-finish').value = e.fuel_finish
+      document.getElementById('logbook-modal').style.display = 'flex'
       logbookRecalc()
     }
 
     function closeLogbookModal() {
       document.getElementById('logbook-modal').style.display = 'none'
+      editingEntryNum = null
     }
 
     function logbookRecalc() {
@@ -1333,13 +1353,11 @@ let logbookEntries = []
     async function saveLogbookEntry() {
       const skipperInitials = document.getElementById('lb-f-skipper').value
       const payload = {
-        entry_num: logbookNextNum(),
         trip_date: document.getElementById('lb-f-date').value,
         skipper_initials: skipperInitials,
         skipper_name: skipperInitials === owner.initials ? owner.name : skipperInitials,
         from_loc: document.getElementById('lb-f-from').value.trim(),
         to_loc: document.getElementById('lb-f-to').value.trim(),
-       
         notes: document.getElementById('lb-f-notes').value.trim(),
         fuel_start: parseFloat(document.getElementById('lb-f-start').value) || 0,
         fuel_finish: parseFloat(document.getElementById('lb-f-finish').value) || 0
@@ -1349,11 +1367,15 @@ let logbookEntries = []
         return
       }
       try {
-        const res = await fetch(`${API}/api/logbook`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
+        const isEdit = editingEntryNum !== null
+        const res = await fetch(
+          isEdit ? `${API}/api/logbook/${editingEntryNum}` : `${API}/api/logbook`,
+          {
+            method: isEdit ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(isEdit ? payload : { ...payload, entry_num: logbookNextNum() })
+          }
+        )
         const data = await res.json()
         if (data.error) { alert(data.error); return }
         closeLogbookModal()
