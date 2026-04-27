@@ -473,6 +473,75 @@ app.post('/api/reports/:id/replies', (req, res) => {
   res.json({ success: true, id: info.lastInsertRowid })
 })
 
+// ---- Todos ----
+
+app.get('/api/todos', (req, res) => {
+  const all = req.query.all === '1'
+  const todos = all
+    ? db.prepare(`SELECT * FROM todos ORDER BY created_at DESC`).all()
+    : db.prepare(`
+        SELECT * FROM todos
+        WHERE done_at IS NULL OR done_at >= datetime('now', '-7 days')
+        ORDER BY created_at DESC
+      `).all()
+  res.json(todos)
+})
+
+app.post('/api/todos', (req, res) => {
+  const { entered_by, entered_by_name, item, assigned_to } = req.body || {}
+  if (!entered_by || !entered_by.trim()) return res.status(400).json({ error: 'entered_by is required' })
+  if (!item || !item.trim()) return res.status(400).json({ error: 'item is required' })
+  const info = db.prepare(`
+    INSERT INTO todos (entered_by, entered_by_name, item, assigned_to)
+    VALUES (?, ?, ?, ?)
+  `).run(entered_by.trim(), entered_by_name || entered_by.trim(), item.trim(), assigned_to || null)
+  res.json({ success: true, id: info.lastInsertRowid })
+})
+
+app.put('/api/todos/:id', (req, res) => {
+  const { item, assigned_to, editor_initials } = req.body || {}
+  const todo = db.prepare(`SELECT * FROM todos WHERE id = ?`).get(req.params.id)
+  if (!todo) return res.status(404).json({ error: 'Todo not found' })
+  if (todo.entered_by !== editor_initials) return res.status(403).json({ error: "Cannot edit another owner's todo" })
+  if (!item || !item.trim()) return res.status(400).json({ error: 'item is required' })
+  db.prepare(`UPDATE todos SET item = ?, assigned_to = ? WHERE id = ?`)
+    .run(item.trim(), assigned_to || null, req.params.id)
+  res.json({ success: true })
+})
+
+app.put('/api/todos/:id/done', (req, res) => {
+  const { done_by } = req.body || {}
+  const todo = db.prepare(`SELECT * FROM todos WHERE id = ?`).get(req.params.id)
+  if (!todo) return res.status(404).json({ error: 'Todo not found' })
+  db.prepare(`UPDATE todos SET done_at = datetime('now'), done_by = ? WHERE id = ?`)
+    .run(done_by || null, req.params.id)
+  res.json({ success: true })
+})
+
+app.put('/api/todos/:id/undone', (req, res) => {
+  const todo = db.prepare(`SELECT * FROM todos WHERE id = ?`).get(req.params.id)
+  if (!todo) return res.status(404).json({ error: 'Todo not found' })
+  db.prepare(`UPDATE todos SET done_at = NULL, done_by = NULL WHERE id = ?`).run(req.params.id)
+  res.json({ success: true })
+})
+
+app.put('/api/todos/:id/assign', (req, res) => {
+  const { assigned_to } = req.body || {}
+  const todo = db.prepare(`SELECT * FROM todos WHERE id = ?`).get(req.params.id)
+  if (!todo) return res.status(404).json({ error: 'Todo not found' })
+  db.prepare(`UPDATE todos SET assigned_to = ? WHERE id = ?`).run(assigned_to || null, req.params.id)
+  res.json({ success: true })
+})
+
+app.delete('/api/todos/:id', (req, res) => {
+  const { requester_initials } = req.body || {}
+  const todo = db.prepare(`SELECT * FROM todos WHERE id = ?`).get(req.params.id)
+  if (!todo) return res.status(404).json({ error: 'Todo not found' })
+  if (todo.entered_by !== requester_initials) return res.status(403).json({ error: "Cannot delete another owner's todo" })
+  db.prepare(`DELETE FROM todos WHERE id = ?`).run(req.params.id)
+  res.json({ success: true })
+})
+
 // ---- Documents ----
 
 app.get('/api/documents/dedicated', (req, res) => {

@@ -72,6 +72,7 @@ body.app {
   padding: 16px 0;
   gap: 4px;
   flex-shrink: 0;
+  overflow-y: auto;
 }
 .sidebar-logo { font-size: 28px; margin-bottom: 12px; }
 .nav-item {

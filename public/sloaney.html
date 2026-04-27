@@ -30,6 +30,10 @@
       <span class="nav-icon">📋</span>
       <span>Reports</span>
     </button>
+    <button class="nav-item" onclick="showPage('todo', event)">
+      <span class="nav-icon">✅</span>
+      <span>To Do</span>
+    </button>
     <button class="nav-item" onclick="showPage('documents', event)">
       <span class="nav-icon">📁</span>
       <span>Documents</span>
@@ -333,6 +337,83 @@
             <div class="rpt-modal-foot">
               <button class="lb-btn" onclick="closeNewReportModal()">Cancel</button>
               <button class="orange-btn" onclick="submitNewReport()" style="padding:7px 18px;">Submit Report</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TO DO -->
+      <div class="page" id="page-todo">
+        <div class="page-title">Boat to-do list</div>
+
+        <div class="rpt-toolbar">
+          <select class="rpt-type-select" id="todo-filter" onchange="renderTodos()" style="font-size:19px; padding:9px 36px 9px 18px;">
+            <option value="all">All</option>
+            <option value="unassigned">Unassigned</option>
+            <option value="mine">Assigned to me</option>
+            <option value="done">Done recently</option>
+          </select>
+          <button class="orange-btn" style="margin-left:auto; font-size:19px; padding:9px 21px;" onclick="openNewTodoModal()">+ To Do Entry</button>
+        </div>
+
+        <div id="todo-list"></div>
+
+        <!-- New todo modal -->
+        <div class="rpt-modal-bg" id="todo-modal">
+          <div class="rpt-modal">
+            <div class="rpt-modal-head">
+              <h2>New To Do</h2>
+              <button class="lb-btn" onclick="closeNewTodoModal()">✕</button>
+            </div>
+            <div class="rpt-modal-body">
+              <div>
+                <label>To Do Item</label>
+                <textarea id="todo-f-item" placeholder="What needs doing?"></textarea>
+              </div>
+              <div>
+                <label>To do by</label>
+                <select id="todo-f-assignee">
+                  <option value="">(Unassigned)</option>
+                  <option value="PO">PO — Paul Oen</option>
+                  <option value="DR">DR — Daniel Righetti</option>
+                  <option value="LM">LM — Larry McIntosh</option>
+                  <option value="PA">PA — Peter Abery</option>
+                </select>
+              </div>
+            </div>
+            <div class="rpt-modal-foot">
+              <button class="lb-btn" onclick="closeNewTodoModal()">Cancel</button>
+              <button class="orange-btn" onclick="submitNewTodo()" style="padding:7px 18px;">Save To Do</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit todo modal -->
+        <div class="rpt-modal-bg" id="todo-edit-modal">
+          <div class="rpt-modal">
+            <div class="rpt-modal-head">
+              <h2>Edit To Do</h2>
+              <button class="lb-btn" onclick="closeEditTodoModal()">✕</button>
+            </div>
+            <div class="rpt-modal-body">
+              <div>
+                <label>To Do Item</label>
+                <textarea id="todo-edit-f-item" placeholder="What needs doing?"></textarea>
+              </div>
+              <div>
+                <label>To do by</label>
+                <select id="todo-edit-f-assignee">
+                  <option value="">(Unassigned)</option>
+                  <option value="PO">PO — Paul Oen</option>
+                  <option value="DR">DR — Daniel Righetti</option>
+                  <option value="LM">LM — Larry McIntosh</option>
+                  <option value="PA">PA — Peter Abery</option>
+                </select>
+              </div>
+            </div>
+            <div class="rpt-modal-foot">
+              <button class="lb-btn" onclick="closeEditTodoModal()">Cancel</button>
+              <button class="orange-btn" onclick="submitEditTodo()" style="padding:7px 18px;">Save</button>
             </div>
           </div>
         </div>
@@ -1215,6 +1296,7 @@ function handleServiceClick(date) {
       if (page === 'settings') { populateSettingsForm() }
       if (page === 'logbook') { loadLogbook() }
       if (page === 'reports') { loadReports() }
+      if (page === 'todo') { loadTodos() }
       if (page === 'documents') { loadDedicatedDocs(); loadInvoices() }
     }
 
@@ -1804,6 +1886,198 @@ let logbookEntries = []
       if (data.error) { alert(data.error); return }
       closeNewReportModal()
       await loadReports()
+    }
+
+    // ---- To Do ----
+
+    let todosData = []
+
+    async function loadTodos() {
+      try {
+        const res = await fetch(`${API}/api/todos`)
+        todosData = await res.json()
+      } catch (err) {
+        console.error('Failed to load todos:', err)
+        todosData = []
+      }
+      renderTodos()
+    }
+
+    function renderTodos() {
+      const list = document.getElementById('todo-list')
+      if (!list) return
+
+      const filter = document.getElementById('todo-filter')?.value || 'all'
+      const filtered = todosData.filter(t => {
+        if (filter === 'unassigned') return !t.assigned_to && !t.done_at
+        if (filter === 'mine') return t.assigned_to === owner.initials && !t.done_at
+        if (filter === 'done') return !!t.done_at
+        return true
+      })
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="placeholder">No to-do items</div>`
+        return
+      }
+
+      const fmtDate = ts => new Date(ts.slice(0, 10) + 'T12:00:00').toLocaleDateString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric' })
+
+      const rows = filtered.map(t => {
+        const c = ownerColors[t.entered_by] || { bg:'#f1f5f9', text:'#475569' }
+        const badge = `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${c.bg};color:${c.text};font-size:12px;font-weight:600;">${t.entered_by}</span>`
+
+        let assigneeCell
+        if (t.assigned_to) {
+          const ac = ownerColors[t.assigned_to] || { bg:'#f1f5f9', text:'#475569' }
+          assigneeCell = `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:${ac.bg};color:${ac.text};font-size:12px;font-weight:600;">${t.assigned_to}</span>`
+        } else {
+          assigneeCell = `<span style="color:#94a3b8;">(Unassigned)</span> <button onclick="volunteerForTodo(${t.id})" style="background:none;border:none;color:#1a5f7a;font-size:12px;cursor:pointer;text-decoration:underline;padding:0 4px;">Volunteer</button>`
+        }
+
+        let doneCell
+        if (t.done_at) {
+          doneCell = `<span style="color:#94a3b8;font-size:13px;">Done by ${t.done_by} on ${fmtDate(t.done_at)}</span> <button onclick="markTodoUndone(${t.id})" style="background:none;border:none;color:#1a5f7a;font-size:12px;cursor:pointer;text-decoration:underline;padding:0 4px;">Undo</button>`
+        } else {
+          doneCell = `<button class="orange-btn" onclick="markTodoDone(${t.id})" style="padding:5px 12px;font-size:13px;">Done</button>`
+        }
+
+        const isOwn = t.entered_by === owner.initials
+        const actions = isOwn
+          ? `<button onclick="openEditTodoModal(${t.id})" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:20px;" title="Edit">✏️</button>
+             <button onclick="deleteTodo(${t.id})" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:14px;padding:4px 6px;" title="Delete">✕</button>`
+          : ''
+
+        return `
+          <tr style="border-bottom:0.5px solid #f0f4f6;">
+            <td style="padding:12px 16px;color:#64748b;white-space:nowrap;">${fmtDate(t.created_at)}</td>
+            <td style="padding:12px 16px;color:#1e293b;">${t.item}</td>
+            <td style="padding:12px 16px;">${badge}</td>
+            <td style="padding:12px 16px;">${assigneeCell}</td>
+            <td style="padding:12px 16px;">${doneCell}</td>
+            <td style="padding:12px 16px;text-align:right;white-space:nowrap;">${actions}</td>
+          </tr>`
+      }).join('')
+
+      list.innerHTML = `
+        <div style="background:white;border-radius:12px;border:0.5px solid #e2e8f0;overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="background:#f8fafc;border-bottom:0.5px solid #e2e8f0;">
+                <th style="padding:12px 16px;text-align:left;font-weight:500;color:#64748b;">Date entered</th>
+                <th style="padding:12px 16px;text-align:left;font-weight:500;color:#64748b;">To Do Item</th>
+                <th style="padding:12px 16px;text-align:left;font-weight:500;color:#64748b;">Entered by</th>
+                <th style="padding:12px 16px;text-align:left;font-weight:500;color:#64748b;">To do by</th>
+                <th style="padding:12px 16px;text-align:left;font-weight:500;color:#64748b;">Done</th>
+                <th style="padding:12px 16px;"></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`
+    }
+
+    function openNewTodoModal() {
+      document.getElementById('todo-f-item').value = ''
+      document.getElementById('todo-f-assignee').value = ''
+      document.getElementById('todo-modal').style.display = 'flex'
+    }
+
+    function closeNewTodoModal() {
+      document.getElementById('todo-modal').style.display = 'none'
+    }
+
+    async function submitNewTodo() {
+      const item = document.getElementById('todo-f-item').value.trim()
+      const assigned_to = document.getElementById('todo-f-assignee').value || null
+      if (!item) { alert('Please enter a to-do item.'); return }
+      const res = await fetch(`${API}/api/todos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entered_by: owner.initials, entered_by_name: owner.name, item, assigned_to })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      closeNewTodoModal()
+      await loadTodos()
+    }
+
+    let editingTodoId = null
+
+    function openEditTodoModal(id) {
+      const t = todosData.find(x => x.id === id)
+      if (!t) return
+      editingTodoId = id
+      document.getElementById('todo-edit-f-item').value = t.item
+      document.getElementById('todo-edit-f-assignee').value = t.assigned_to || ''
+      document.getElementById('todo-edit-modal').style.display = 'flex'
+    }
+
+    function closeEditTodoModal() {
+      document.getElementById('todo-edit-modal').style.display = 'none'
+      editingTodoId = null
+    }
+
+    async function submitEditTodo() {
+      if (!editingTodoId) return
+      const item = document.getElementById('todo-edit-f-item').value.trim()
+      const assigned_to = document.getElementById('todo-edit-f-assignee').value || null
+      if (!item) { alert('Please enter a to-do item.'); return }
+      const res = await fetch(`${API}/api/todos/${editingTodoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item, assigned_to, editor_initials: owner.initials })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      closeEditTodoModal()
+      await loadTodos()
+    }
+
+    async function deleteTodo(id) {
+      if (!confirm('Delete this to-do item?')) return
+      const res = await fetch(`${API}/api/todos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requester_initials: owner.initials })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadTodos()
+    }
+
+    async function markTodoDone(id) {
+      const res = await fetch(`${API}/api/todos/${id}/done`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done_by: owner.initials })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadTodos()
+    }
+
+    async function markTodoUndone(id) {
+      const res = await fetch(`${API}/api/todos/${id}/undone`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadTodos()
+    }
+
+    async function volunteerForTodo(id) {
+      const t = todosData.find(x => x.id === id)
+      if (!t || t.assigned_to) return
+      const res = await fetch(`${API}/api/todos/${id}/assign`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to: owner.initials })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadTodos()
     }
 
     // On first open, land on Bookings and load the calendar

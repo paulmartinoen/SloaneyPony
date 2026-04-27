@@ -98,6 +98,17 @@ CREATE TABLE IF NOT EXISTS logbook (
     body TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+    entered_by TEXT NOT NULL,
+    entered_by_name TEXT,
+    item TEXT NOT NULL,
+    assigned_to TEXT,
+    done_at TEXT,
+    done_by TEXT
+  );
 `)
 
 // ---- Migration: drop old UNIQUE constraint on bookings.date ----
