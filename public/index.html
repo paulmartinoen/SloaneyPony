@@ -32,12 +32,29 @@
         <div class="owner-role">1/4 owner</div>
       </button>
     </div>
+
+    <div class="cleaner-divider">or</div>
+
+    <button class="cleaner-btn" onclick="loginCleaner()">
+      <div class="cleaner-avatar">🧹</div>
+      <div class="cleaner-info">
+        <div class="owner-name">Boat Cleaner</div>
+        <div class="owner-role">View schedule only</div>
+      </div>
+    </button>
   </div>
 
   <script>
     function login(initials, name) {
       sessionStorage.setItem('owner_initials', initials)
       sessionStorage.setItem('owner_name', name)
+      sessionStorage.removeItem('owner_role')
+      window.location.href = '/sloaney.html'
+    }
+    function loginCleaner() {
+      sessionStorage.setItem('owner_initials', 'CL')
+      sessionStorage.setItem('owner_name', 'Boat Cleaner')
+      sessionStorage.setItem('owner_role', 'cleaner')
       window.location.href = '/sloaney.html'
     }
   </script>

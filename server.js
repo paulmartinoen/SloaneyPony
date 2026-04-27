@@ -1,8 +1,15 @@
+require('dotenv').config()
 const express = require('express')
 const path = require('path')
 const fs = require('fs')
 const multer = require('multer')
 const { db, ensureStandardPoints, getPointCost, isAdvanceBooking, owners, getSetting, getAllSettings, setSetting } = require('./database')
+const { sendNotification } = require('./mailer')
+
+function fmtDateEmail(dateStr) {
+  return new Date(dateStr.slice(0, 10) + 'T12:00:00')
+    .toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 const app = express()
 app.use(express.json())
@@ -143,6 +150,7 @@ app.post('/api/bookings', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(owner_initials, owner_name, date, pointCost, advance ? 'advance' : 'standard', notes || null)
 
+  sendNotification(`${owner_initials} made a booking for ${fmtDateEmail(date)}`).catch(console.error)
   res.json({ success: true, pointCost, bookingType: advance ? 'advance' : 'standard' })
 })
 
@@ -253,6 +261,8 @@ app.post('/api/bookings/batch', (req, res) => {
     return res.status(500).json({ error: 'Booking failed: ' + err.message })
   }
 
+  const dateList = plan.map(p => fmtDateEmail(p.date)).join(', ')
+  sendNotification(`${owner_initials} made ${plan.length} booking${plan.length > 1 ? 's' : ''}: ${dateList}`).catch(console.error)
   res.json({ success: true, count: plan.length })
 })
 
@@ -274,6 +284,7 @@ app.delete('/api/bookings/:date', (req, res) => {
     UPDATE bookings SET status = 'cancelled' WHERE date = ?
   `).run(date)
 
+  sendNotification(`${owner_initials} cancelled their booking for ${fmtDateEmail(date)}`).catch(console.error)
   res.json({ success: true })
 })
 
@@ -395,6 +406,7 @@ app.post('/api/logbook', (req, res) => {
     start, finish
   )
 
+  sendNotification(`${skipper_initials} added a logbook entry: ${fmtDateEmail(trip_date)}, ${from_loc} to ${to_loc}`).catch(console.error)
   res.json({ success: true, entry_num: info.lastInsertRowid })
 })
 
@@ -440,6 +452,8 @@ app.post('/api/reports', (req, res) => {
   const info = db.prepare(
     `INSERT INTO reports (type, author_initials, author_name, body, report_date) VALUES (?, ?, ?, ?, ?)`
   ).run(type, author_initials, author_name || author_initials, body.trim(), report_date)
+  const reportSnippet = body.trim().length > 100 ? body.trim().slice(0, 100) + '…' : body.trim()
+  sendNotification(`${author_initials} submitted a ${type} report: ${reportSnippet}`).catch(console.error)
   res.json({ success: true, id: info.lastInsertRowid })
 })
 
@@ -495,6 +509,8 @@ app.post('/api/todos', (req, res) => {
     INSERT INTO todos (entered_by, entered_by_name, item, assigned_to)
     VALUES (?, ?, ?, ?)
   `).run(entered_by.trim(), entered_by_name || entered_by.trim(), item.trim(), assigned_to || null)
+  const assignedNote = assigned_to ? `, assigned to ${assigned_to}` : ''
+  sendNotification(`${entered_by} added a to-do item: ${item.trim()}${assignedNote}`).catch(console.error)
   res.json({ success: true, id: info.lastInsertRowid })
 })
 

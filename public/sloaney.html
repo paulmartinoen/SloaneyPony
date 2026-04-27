@@ -307,7 +307,7 @@
 
           <div id="mr-content"></div>
 
-          <div class="mr-footer">For support, please email support@boatequity.com.au</div>
+          <div class="mr-footer">For support, please email sloaney6011@gmail.com</div>
         </div>
 
         <!-- New report modal -->
@@ -613,15 +613,27 @@
 
     const _initials = sessionStorage.getItem('owner_initials')
     const _name     = sessionStorage.getItem('owner_name')
+    const _role     = sessionStorage.getItem('owner_role')
     sessionStorage.removeItem('owner_initials')
     sessionStorage.removeItem('owner_name')
+    sessionStorage.removeItem('owner_role')
     if (!_initials) { window.location.replace('/'); throw new Error('redirect') }
-    const owner = { initials: _initials, name: _name || 'Unknown' }
+    const owner = { initials: _initials, name: _name || 'Unknown', role: _role || 'owner' }
+    const isOwner = owner.role !== 'cleaner'
 
     const nicknames = { 'DR': 'Dan' }
     const greetingName = nicknames[owner.initials] || owner.name.split(' ')[0]
     document.getElementById('topbar-greeting').textContent = 'Hello, ' + greetingName
-    document.getElementById('topbar-avatar').textContent = owner.initials
+    document.getElementById('topbar-avatar').textContent = isOwner ? owner.initials : '🧹'
+
+    if (!isOwner) {
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        const match = btn.getAttribute('onclick')?.match(/showPage\('(\w+)'/)
+        if (match && match[1] !== 'bookings') btn.style.display = 'none'
+      })
+      document.querySelector('.switch-owner-btn').style.display = 'none'
+      document.getElementById('booking-panel').style.display = 'none'
+    }
 
     const ownerColors = {
       'PO': { bg:'#dbeafe', text:'#1e40af', dot:'#3b82f6' },
@@ -791,7 +803,7 @@
       tbody.innerHTML = data.map(row => {
         const isService = row.type === 'service'
         const isOwn = !isService && row.owner_initials === owner.initials
-        const canCancel = isOwn || isService
+        const canCancel = isOwner && (isOwn || isService)
 
         const d = new Date(row.date + 'T12:00:00')
         const dateLabel = d.toLocaleDateString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric' })
@@ -911,7 +923,7 @@
           cell.appendChild(pts)
         }
 
-        cell.onclick = () => selectDay(dateStr, bookingMap, serviceMap, holidayDates)
+        if (isOwner) cell.onclick = () => selectDay(dateStr, bookingMap, serviceMap, holidayDates)
         body.appendChild(cell)
       }
     }
