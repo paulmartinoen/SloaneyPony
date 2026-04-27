@@ -343,7 +343,7 @@
         <div class="page-title">We store our documents here</div>
 
         <!-- Important Documents -->
-        <div class="doc-section-divider">Important Documents</div>
+        <div class="doc-section-divider" style="margin-top:32px;">Important Documents</div>
         <div class="doc-grid" id="doc-dedicated-grid">
           <div style="color:#94a3b8; font-size:13px;">Loading…</div>
         </div>
@@ -528,7 +528,7 @@
   </div>
 
   <script>
-    const API = 'http://localhost:3001'
+   const API = ''
 
     const _initials = sessionStorage.getItem('owner_initials')
     const _name     = sessionStorage.getItem('owner_name')
@@ -537,7 +537,9 @@
     if (!_initials) { window.location.replace('/'); throw new Error('redirect') }
     const owner = { initials: _initials, name: _name || 'Unknown' }
 
-    document.getElementById('topbar-greeting').textContent = 'Hello, ' + owner.name.split(' ')[0]
+    const nicknames = { 'DR': 'Dan' }
+    const greetingName = nicknames[owner.initials] || owner.name.split(' ')[0]
+    document.getElementById('topbar-greeting').textContent = 'Hello, ' + greetingName
     document.getElementById('topbar-avatar').textContent = owner.initials
 
     const ownerColors = {
@@ -1114,10 +1116,8 @@ function clearSelectedDay() {
       // bookings must fit in the allocation, so any overflow is dollar-owed.
       const excessEl = document.getElementById('my-excess-owed')
       if (excessEl && myStandard) {
-        const myStandardBookings = (calData.bookings || []).filter(b =>
-          b.owner_initials === owner.initials && b.booking_type === 'standard'
-        )
-        const totalBooked = myStandardBookings.reduce((sum, b) => sum + b.points_cost, 0)
+        const myBookings = (calData.bookings || []).filter(b => b.owner_initials === owner.initials)
+        const totalBooked = myBookings.reduce((sum, b) => sum + b.points_cost, 0)
         const overflow = Math.max(0, totalBooked - myStandard.points_allocated)
         if (overflow > 0) {
           const dollars = overflow * settings.excess_cost_per_point

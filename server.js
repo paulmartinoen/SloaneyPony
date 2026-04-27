@@ -27,7 +27,9 @@ app.get('/api/bookings/:year/:month', (req, res) => {
   ensureStandardPoints(parseInt(year), parseInt(month))
 
   const bookings = db.prepare(`
-    SELECT * FROM bookings
+    SELECT *,
+      CASE WHEN date > date('now', 'localtime', '+60 days') THEN 'advance' ELSE 'standard' END AS booking_type
+    FROM bookings
     WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ?
     AND status = 'confirmed'
     ORDER BY date
@@ -51,14 +53,33 @@ app.get('/api/points/:year/:month', (req, res) => {
   const { year, month } = req.params
   ensureStandardPoints(parseInt(year), parseInt(month))
 
-  const standard = db.prepare(`
-    SELECT * FROM standard_points
-    WHERE year = ? AND month = ?
-  `).all(parseInt(year), parseInt(month))
+  const yr = parseInt(year)
+  const mo = parseInt(month)
+  const monthPad = month.padStart(2, '0')
 
-  const advance = db.prepare(`
-    SELECT * FROM advance_credits
-  `).all()
+  const allocations = db.prepare(`
+    SELECT * FROM standard_points WHERE year = ? AND month = ?
+  `).all(yr, mo)
+
+  const advanceAllocations = db.prepare(`SELECT * FROM advance_credits`).all()
+
+  const standard = allocations.map(row => {
+    const { used } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND strftime('%Y', date) = ? AND strftime('%m', date) = ?
+    `).get(row.owner_initials, year, monthPad)
+    return { ...row, points_used: used }
+  })
+
+  const advance = advanceAllocations.map(row => {
+    const { used } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND date > date('now', 'localtime', '+60 days')
+    `).get(row.owner_initials)
+    return { ...row, credits_used: used }
+  })
 
   res.json({ standard, advance })
 })
@@ -87,31 +108,34 @@ app.post('/api/bookings', (req, res) => {
 
   ensureStandardPoints(year, month)
 
+  // Per-month total cap: standard + advance combined cannot exceed allocation.
+  // Within-48h bookings are exempt — they get the dollar-excess treatment instead.
+  if (!isWithin48Hours(date)) {
+    const stdRow = db.prepare(`SELECT * FROM standard_points WHERE owner_initials = ? AND year = ? AND month = ?`).get(owner_initials, year, month)
+    const { monthTotal } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as monthTotal FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND strftime('%Y', date) = ? AND strftime('%m', date) = ?
+    `).get(owner_initials, String(year), String(month).padStart(2, '0'))
+    const monthRemaining = stdRow.points_allocated - monthTotal
+    if (monthRemaining < pointCost) {
+      const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' })
+      return res.status(400).json({ error: `Not enough ${monthName} capacity. Need ${pointCost}, have ${monthRemaining}` })
+    }
+  }
+
+  // Advance bookings additionally check the advance credit pool
   if (advance) {
-    // Check advance credits
-    const credits = db.prepare(`
-      SELECT * FROM advance_credits WHERE owner_initials = ?
+    const advRow = db.prepare(`SELECT * FROM advance_credits WHERE owner_initials = ?`).get(owner_initials)
+    const { used } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND date > date('now', 'localtime', '+60 days')
     `).get(owner_initials)
-    const remaining = credits.credits_allocated - credits.credits_used
+    const remaining = advRow.credits_allocated - used
     if (remaining < pointCost) {
       return res.status(400).json({ error: `Not enough advance credits. Need ${pointCost}, have ${remaining}` })
     }
-    db.prepare(`
-      UPDATE advance_credits SET credits_used = credits_used + ? WHERE owner_initials = ?
-    `).run(pointCost, owner_initials)
-  } else {
-    // Check standard points
-    const pts = db.prepare(`
-      SELECT * FROM standard_points WHERE owner_initials = ? AND year = ? AND month = ?
-    `).get(owner_initials, year, month)
-    const remaining = pts.points_allocated - pts.points_used
-    if (remaining < pointCost) {
-      return res.status(400).json({ error: `Not enough points. Need ${pointCost}, have ${remaining}` })
-    }
-    db.prepare(`
-      UPDATE standard_points SET points_used = points_used + ?
-      WHERE owner_initials = ? AND year = ? AND month = ?
-    `).run(pointCost, owner_initials, year, month)
   }
 
   db.prepare(`
@@ -145,8 +169,8 @@ app.post('/api/bookings/batch', (req, res) => {
 
   // Build a plan for each date: validate everything up front so we can bail cleanly
   const plan = []
-  // Per-month standard tallies split into "mandatory" (must fit in points) and "excess-eligible" (within 48h, may overflow)
-  const standardByMonth = {}  // key "YYYY-M" → { mandatory, excessEligible }
+  // Per-month totals covering ALL booking types — advance and standard both count toward the monthly cap
+  const monthlyCapCheck = {}  // key "YYYY-M" → { mandatory, excessEligible }
   const advanceSpend = { total: 0 }
 
   for (const date of dates) {
@@ -170,67 +194,51 @@ app.post('/api/bookings/batch', (req, res) => {
     ensureStandardPoints(year, month)
     plan.push({ date, pointCost, advance, within48, year, month })
 
-    if (advance) {
-      advanceSpend.total += pointCost
-    } else {
-      const key = `${year}-${month}`
-      if (!standardByMonth[key]) standardByMonth[key] = { mandatory: 0, excessEligible: 0 }
-      if (within48) standardByMonth[key].excessEligible += pointCost
-      else standardByMonth[key].mandatory += pointCost
-    }
+    if (advance) advanceSpend.total += pointCost
+
+    const key = `${year}-${month}`
+    if (!monthlyCapCheck[key]) monthlyCapCheck[key] = { mandatory: 0, excessEligible: 0 }
+    if (within48) monthlyCapCheck[key].excessEligible += pointCost
+    else monthlyCapCheck[key].mandatory += pointCost
   }
 
-  // Verify cumulative advance spend
+  // Verify advance credit pool
   if (advanceSpend.total > 0) {
-    const credits = db.prepare(
-      `SELECT * FROM advance_credits WHERE owner_initials = ?`
-    ).get(owner_initials)
-    const remaining = credits.credits_allocated - credits.credits_used
+    const advRow = db.prepare(`SELECT * FROM advance_credits WHERE owner_initials = ?`).get(owner_initials)
+    const { used } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND date > date('now', 'localtime', '+60 days')
+    `).get(owner_initials)
+    const remaining = advRow.credits_allocated - used
     if (remaining < advanceSpend.total) {
       return res.status(400).json({ error: `Not enough advance credits. Need ${advanceSpend.total}, have ${remaining}` })
     }
   }
 
-  // For each month, mandatory bookings must fit in the balance.
-  // Excess-eligible (within-48h) bookings may overflow — shortfall is dollar-charged.
-  // We also record how many points to actually deduct per month (capped at allocation).
-  const standardDeduction = {}  // key "YYYY-M" → points to deduct from allocation
-  for (const key of Object.keys(standardByMonth)) {
-    const [year, month] = key.split('-').map(Number)
-    const pts = db.prepare(
+  // Per-month total cap: standard + advance combined cannot exceed allocation.
+  // Within-48h bookings (excessEligible) are exempt — shortfall is dollar-charged.
+  for (const key of Object.keys(monthlyCapCheck)) {
+    const [yr, mo] = key.split('-').map(Number)
+    const stdRow = db.prepare(
       `SELECT * FROM standard_points WHERE owner_initials = ? AND year = ? AND month = ?`
-    ).get(owner_initials, year, month)
-    const remaining = pts.points_allocated - pts.points_used
-    const { mandatory, excessEligible } = standardByMonth[key]
+    ).get(owner_initials, yr, mo)
+    const { monthTotal } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as monthTotal FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND strftime('%Y', date) = ? AND strftime('%m', date) = ?
+    `).get(owner_initials, String(yr), String(mo).padStart(2, '0'))
+    const monthRemaining = stdRow.points_allocated - monthTotal
+    const { mandatory } = monthlyCapCheck[key]
 
-    if (mandatory > remaining) {
-      const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' })
-      return res.status(400).json({ error: `Not enough ${monthName} points. Need ${mandatory}, have ${remaining}` })
+    if (mandatory > monthRemaining) {
+      const monthName = new Date(yr, mo - 1, 1).toLocaleString('default', { month: 'long' })
+      return res.status(400).json({ error: `Not enough ${monthName} capacity. Need ${mandatory}, have ${monthRemaining}` })
     }
-
-    // Remaining after mandatory is absorbed by excess-eligible bookings up to what's available.
-    const leftover = remaining - mandatory
-    const pointsForExcess = Math.min(leftover, excessEligible)
-    standardDeduction[key] = mandatory + pointsForExcess
   }
 
-  // All validated — commit as a single transaction
+  // All validated — commit as a single transaction (just inserts; pools are computed on read)
   const commit = db.transaction(() => {
-    // Deduct points per month
-    for (const key of Object.keys(standardDeduction)) {
-      const [year, month] = key.split('-').map(Number)
-      db.prepare(
-        `UPDATE standard_points SET points_used = points_used + ?
-         WHERE owner_initials = ? AND year = ? AND month = ?`
-      ).run(standardDeduction[key], owner_initials, year, month)
-    }
-    // Deduct advance credits (single owner row, sum total)
-    if (advanceSpend.total > 0) {
-      db.prepare(
-        `UPDATE advance_credits SET credits_used = credits_used + ? WHERE owner_initials = ?`
-      ).run(advanceSpend.total, owner_initials)
-    }
-    // Insert every booking row — points_cost is always the day's full cost
     for (const p of plan) {
       db.prepare(
         `INSERT INTO bookings (owner_initials, owner_name, date, points_cost, booking_type, notes)
@@ -260,24 +268,6 @@ app.delete('/api/bookings/:date', (req, res) => {
   if (!booking) return res.status(404).json({ error: 'Booking not found' })
   if (booking.owner_initials !== owner_initials) {
     return res.status(403).json({ error: 'You can only cancel your own bookings' })
-  }
-
-  const bookingDate = new Date(date + 'T12:00:00')
-  const year = bookingDate.getFullYear()
-  const month = bookingDate.getMonth() + 1
-
-  // Refund points. Clamp at zero — if the original booking was partially
-  // paid in dollars (honor system), the refund is only the portion that
-  // was actually deducted from points.
-  if (booking.booking_type === 'advance') {
-    db.prepare(`
-      UPDATE advance_credits SET credits_used = MAX(0, credits_used - ?) WHERE owner_initials = ?
-    `).run(booking.points_cost, owner_initials)
-  } else {
-    db.prepare(`
-      UPDATE standard_points SET points_used = MAX(0, points_used - ?)
-      WHERE owner_initials = ? AND year = ? AND month = ?
-    `).run(booking.points_cost, owner_initials, year, month)
   }
 
   db.prepare(`
@@ -334,7 +324,9 @@ app.get('/api/upcoming', (req, res) => {
 const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
 
   const bookings = db.prepare(`
-    SELECT owner_initials, owner_name, date, points_cost, booking_type, 'booking' as type
+    SELECT owner_initials, owner_name, date, points_cost,
+      CASE WHEN date > date('now', 'localtime', '+60 days') THEN 'advance' ELSE 'standard' END AS booking_type,
+      'booking' as type
     FROM bookings
     WHERE status = 'confirmed' AND date >= ?
     ORDER BY date
@@ -352,52 +344,6 @@ const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-
 
   res.json(combined)
 })
-
-function convertAdvanceBookings() {
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
-  
-  const cutoffDate = new Date(now)
-  cutoffDate.setDate(cutoffDate.getDate() + 60)
-  const cutoff = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth()+1).padStart(2,'0')}-${String(cutoffDate.getDate()).padStart(2,'0')}`
-
-  console.log(`Conversion check: today=${today}, cutoff=${cutoff}`)
-
-  const toConvert = db.prepare(`
-    SELECT * FROM bookings
-    WHERE booking_type = 'advance'
-    AND status = 'confirmed'
-    AND date <= ?
-  `).all(cutoff)
-
-  console.log(`Found ${toConvert.length} bookings to convert`)
-
-  for (const booking of toConvert) {
-    const bookingDate = new Date(booking.date + 'T12:00:00')
-    const year = bookingDate.getFullYear()
-    const month = bookingDate.getMonth() + 1
-
-    ensureStandardPoints(year, month)
-
-    db.prepare(`
-      UPDATE standard_points
-      SET points_used = points_used + ?
-      WHERE owner_initials = ? AND year = ? AND month = ?
-    `).run(booking.points_cost, booking.owner_initials, year, month)
-
-    db.prepare(`
-      UPDATE advance_credits
-      SET credits_used = credits_used - ?
-      WHERE owner_initials = ?
-    `).run(booking.points_cost, booking.owner_initials)
-
-    db.prepare(`
-      UPDATE bookings SET booking_type = 'standard' WHERE id = ?
-    `).run(booking.id)
-
-    console.log(`Converted advance booking ${booking.date} for ${booking.owner_initials} to standard`)
-  }
-}
 
 // ---- Logbook ----
 
@@ -594,18 +540,25 @@ app.get('/api/monthly-report/:year/:month', (req, res) => {
   const excessCostPerPoint = Number(db.prepare(`SELECT value FROM settings WHERE key = 'excess_cost_per_point'`).get()?.value || 5)
   const fuelPricePerLitre = Number(db.prepare(`SELECT value FROM settings WHERE key = 'fuel_price_per_litre'`).get()?.value || 3.35)
 
-  const standardPoints = db.prepare(`
+  const standardAllocations = db.prepare(`
     SELECT * FROM standard_points WHERE year = ? AND month = ?
   `).all(year, month)
 
+  const monthPadMR = String(month).padStart(2, '0')
+
   const pointUsage = owners.map(o => {
-    const sp = standardPoints.find(p => p.owner_initials === o.initials) || { points_used: 0, points_allocated: 210 }
-    const excessPoints = Math.max(0, sp.points_used - sp.points_allocated)
+    const alloc = standardAllocations.find(p => p.owner_initials === o.initials) || { points_allocated: 210 }
+    const { points_used } = db.prepare(`
+      SELECT COALESCE(SUM(points_cost), 0) as points_used FROM bookings
+      WHERE owner_initials = ? AND status = 'confirmed'
+      AND strftime('%Y', date) = ? AND strftime('%m', date) = ?
+    `).get(o.initials, String(year), monthPadMR)
+    const excessPoints = Math.max(0, points_used - alloc.points_allocated)
     return {
       owner_initials: o.initials,
       owner_name: o.name,
-      points_used: sp.points_used,
-      points_allocated: sp.points_allocated,
+      points_used,
+      points_allocated: alloc.points_allocated,
       excess_points: excessPoints,
       excess_due: excessPoints * excessCostPerPoint
     }
@@ -668,6 +621,5 @@ app.put('/api/settings', (req, res) => {
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  convertAdvanceBookings()
   console.log(`Sloaney Pony running at http://localhost:${PORT}`)
 })
