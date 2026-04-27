@@ -621,7 +621,7 @@
     const owner = { initials: _initials, name: _name || 'Unknown', role: _role || 'owner' }
     const isOwner = owner.role !== 'cleaner'
 
-    const nicknames = { 'DR': 'Dan' }
+    const nicknames = { 'DR': 'Dan', 'CL': 'Cleaner' }
     const greetingName = nicknames[owner.initials] || owner.name.split(' ')[0]
     document.getElementById('topbar-greeting').textContent = 'Hello, ' + greetingName
     document.getElementById('topbar-avatar').textContent = isOwner ? owner.initials : '🧹'
