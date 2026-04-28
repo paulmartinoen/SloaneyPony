@@ -127,7 +127,7 @@ app.post('/api/bookings', (req, res) => {
     const monthRemaining = stdRow.points_allocated - monthTotal
     if (monthRemaining < pointCost) {
       const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' })
-      return res.status(400).json({ error: `Not enough ${monthName} capacity. Need ${pointCost}, have ${monthRemaining}` })
+      return res.status(400).json({ error: `Not enough ${monthName} credits. Need ${pointCost}, have ${monthRemaining}` })
     }
   }
 
@@ -241,7 +241,7 @@ app.post('/api/bookings/batch', (req, res) => {
 
     if (mandatory > monthRemaining) {
       const monthName = new Date(yr, mo - 1, 1).toLocaleString('default', { month: 'long' })
-      return res.status(400).json({ error: `Not enough ${monthName} capacity. Need ${mandatory}, have ${monthRemaining}` })
+      return res.status(400).json({ error: `Not enough ${monthName} credits. Need ${mandatory}, have ${monthRemaining}` })
     }
   }
 

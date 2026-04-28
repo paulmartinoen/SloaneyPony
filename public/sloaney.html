@@ -800,10 +800,14 @@
         return
       }
 
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+
       tbody.innerHTML = data.map(row => {
         const isService = row.type === 'service'
         const isOwn = !isService && row.owner_initials === owner.initials
-        const canCancel = isOwner && (isOwn || isService)
+        const isPastOrToday = row.date <= todayStr
+        const canConvert = isOwner && isOwn && isPastOrToday
+        const canCancel = isOwner && !isPastOrToday && (isOwn || isService)
 
         const d = new Date(row.date + 'T12:00:00')
         const dateLabel = d.toLocaleDateString('en-AU', { day:'2-digit', month:'2-digit', year:'numeric' })
@@ -811,7 +815,12 @@
         const typeLabel = isService ? 'Out of Service' :
           (row.booking_type === 'advance' ? 'Advance Booking' : 'Standard Booking')
 
-        const cancelBtn = canCancel ? `
+        const cancelBtn = canConvert ? `
+          <button onclick="convertToServiceDay('${row.date}')"
+            style="border:1px solid #e8851a; background:white; color:#e8851a; border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer;">
+            Mark out of service
+          </button>`
+          : canCancel ? `
           <button onclick="${isService ? `cancelServiceDay('${row.date}')` : `cancelBooking('${row.date}')`}"
             style="border:1px solid #e8851a; background:white; color:#e8851a; border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer;">
             Cancel
@@ -967,11 +976,21 @@
         renderPoints()
         const b = bookingMap[dateStr]
         const cost = getPointCostDisplay(dateStr, holidayDates)
+        const todayStr = `${todayMidnight.getFullYear()}-${String(todayMidnight.getMonth()+1).padStart(2,'0')}-${String(todayMidnight.getDate()).padStart(2,'0')}`
+        const isPastOrToday = dateStr <= todayStr
         if (b.owner_initials === owner.initials) {
-          panel.innerHTML = `
-            <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
-            <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Booked by you — ${cost} pts</div>
-            <button class="orange-btn" style="width:100%;" onclick="cancelBooking('${dateStr}')">Cancel Booking</button>`
+          if (isPastOrToday) {
+            panel.innerHTML = `
+              <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+              <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Booked by you — ${cost} pts</div>
+              <button class="orange-btn" style="width:100%;" onclick="convertToServiceDay('${dateStr}')">Mark Out of Service</button>
+              <div style="font-size:11px; color:#94a3b8; margin-top:8px; text-align:center;">Booking cancelled · ${cost} pts refunded</div>`
+          } else {
+            panel.innerHTML = `
+              <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+              <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Booked by you — ${cost} pts</div>
+              <button class="orange-btn" style="width:100%;" onclick="cancelBooking('${dateStr}')">Cancel Booking</button>`
+          }
         } else {
           panel.innerHTML = `
             <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
@@ -1146,6 +1165,24 @@ function clearSelectedDay() {
       })
       const data = await res.json()
       if (data.error) { alert(data.error) } else { clearSelectedDay(); loadCalendar() }
+    }
+
+    async function convertToServiceDay(date) {
+      if (!confirm('Mark this day out of service? Your booking will be cancelled and your points refunded.')) return
+      const cancelRes = await fetch(`${API}/api/bookings/${date}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_initials: owner.initials })
+      })
+      const cancelData = await cancelRes.json()
+      if (cancelData.error) { alert(cancelData.error); return }
+      await fetch(`${API}/api/service-days`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_initials: owner.initials, owner_name: owner.name, date, notes: 'Converted from booking' })
+      })
+      clearSelectedDay()
+      loadCalendar()
     }
 
     async function cancelBooking(date) {
