@@ -425,8 +425,31 @@
 
         <!-- Important Documents -->
         <div class="doc-section-divider" style="margin-top:32px;">Important Documents</div>
+        <div class="doc-toolbar">
+          <button class="orange-btn" onclick="openDedicatedDocModal()">+ Add Important Document</button>
+        </div>
         <div class="doc-grid" id="doc-dedicated-grid">
           <div style="color:#94a3b8; font-size:13px;">Loading…</div>
+        </div>
+
+        <!-- Add important document modal -->
+        <div class="inv-modal-bg" id="dedicated-modal">
+          <div class="inv-modal">
+            <div class="inv-modal-head">
+              <h2>Add Important Document</h2>
+              <button class="lb-btn" onclick="closeDedicatedDocModal()">✕</button>
+            </div>
+            <div class="inv-modal-body">
+              <div>
+                <label>File</label>
+                <input type="file" id="ded-f-file">
+              </div>
+            </div>
+            <div class="inv-modal-foot">
+              <button class="lb-btn" onclick="closeDedicatedDocModal()">Cancel</button>
+              <button class="orange-btn" id="ded-submit-btn" onclick="submitDedicatedDoc()" style="padding:7px 18px;">Upload</button>
+            </div>
+          </div>
         </div>
 
         <!-- Invoices -->
@@ -1525,18 +1548,60 @@ let logbookEntries = []
         const res = await fetch(`${API}/api/documents/dedicated`)
         const docs = await res.json()
         if (!docs.length) {
-          grid.innerHTML = `<div style="color:#94a3b8; font-size:13px;">No documents found. Add files to the Dedicated Documents folder.</div>`
+          grid.innerHTML = `<div style="color:#94a3b8; font-size:13px;">No important documents uploaded yet.</div>`
           return
         }
+        const icon = ext => ext === '.pdf' ? '📄' : ext.match(/\.(jpg|jpeg|png|gif|webp)/) ? '🖼️' : '📎'
         grid.innerHTML = docs.map(d => `
           <div class="doc-card">
-            <div class="doc-card-icon">📄</div>
+            <div class="doc-card-icon">${icon(d.ext)}</div>
             <div class="doc-card-name">${d.name}</div>
-            <a class="doc-card-open" href="${d.url}" target="_blank">Open</a>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <a class="doc-card-open" href="${d.url}" target="_blank">View</a>
+              <button onclick="deleteDedicatedDoc('${encodeURIComponent(d.filename)}')" title="Delete"
+                style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:16px; line-height:1; padding:0;">✕</button>
+            </div>
           </div>`).join('')
       } catch (err) {
         grid.innerHTML = `<div style="color:#94a3b8; font-size:13px;">Failed to load documents.</div>`
       }
+    }
+
+    function openDedicatedDocModal() {
+      document.getElementById('ded-f-file').value = ''
+      document.getElementById('dedicated-modal').style.display = 'flex'
+    }
+
+    function closeDedicatedDocModal() {
+      document.getElementById('dedicated-modal').style.display = 'none'
+    }
+
+    async function submitDedicatedDoc() {
+      const btn = document.getElementById('ded-submit-btn')
+      const file = document.getElementById('ded-f-file').files[0]
+      if (!file) { alert('Please select a file.'); return }
+      const formData = new FormData()
+      formData.append('file', file)
+      btn.textContent = 'Uploading…'
+      btn.disabled = true
+      try {
+        const res = await fetch(`${API}/api/documents/dedicated`, { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        closeDedicatedDocModal()
+        await loadDedicatedDocs()
+      } finally {
+        btn.textContent = 'Upload'
+        btn.disabled = false
+      }
+    }
+
+    async function deleteDedicatedDoc(encodedFilename) {
+      if (!confirm('Delete this document? This cannot be undone.')) return
+      const res = await fetch(`${API}/api/documents/dedicated/${encodedFilename}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadDedicatedDocs()
     }
 
     let invoicesData = []
@@ -1591,7 +1656,7 @@ let logbookEntries = []
           <td><span class="inv-category-badge">${i.category}</span></td>
           <td>$${Number(i.amount).toFixed(2)}</td>
           <td style="color:#64748b; font-size:13px;">${i.description || '—'}</td>
-          <td>${i.filename ? `<a class="inv-view-btn" href="/documents/Invoices/${encodeURIComponent(i.filename)}" target="_blank">View PDF</a>` : '<span style="color:#cbd5e1; font-size:13px;">No file</span>'}</td>
+          <td>${i.filename ? `<a class="inv-view-btn" href="/uploads/invoices/${encodeURIComponent(i.filename)}" target="_blank">View PDF</a>` : '<span style="color:#cbd5e1; font-size:13px;">No file</span>'}</td>
           <td><button class="inv-delete-btn" onclick="deleteInvoice(${i.id})" title="Delete">✕</button></td>
         </tr>`).join('')
     }

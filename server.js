@@ -11,14 +11,29 @@ function fmtDateEmail(dateStr) {
     .toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+const DB_DIR = process.env.DB_DIR || path.join(__dirname, 'data')
+const DOCS_DIR = process.env.DOCS_DIR || path.join(DB_DIR, 'documents')
+const DEDICATED_DIR = path.join(DOCS_DIR, 'dedicated')
+const INVOICES_DIR = path.join(DOCS_DIR, 'invoices')
+fs.mkdirSync(DEDICATED_DIR, { recursive: true })
+fs.mkdirSync(INVOICES_DIR, { recursive: true })
+
 const app = express()
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
-app.use('/documents', express.static(path.join(__dirname, 'Documents')))
+app.use('/uploads', express.static(DOCS_DIR))
+
+const dedicatedUpload = multer({
+  storage: multer.diskStorage({
+    destination: DEDICATED_DIR,
+    filename: (req, file, cb) => cb(null, file.originalname)
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 }
+})
 
 const invoiceUpload = multer({
   storage: multer.diskStorage({
-    destination: path.join(__dirname, 'Documents', 'Invoices'),
+    destination: INVOICES_DIR,
     filename: (req, file, cb) => {
       const unique = Date.now() + '-' + Math.round(Math.random() * 1e9)
       cb(null, unique + path.extname(file.originalname))
@@ -561,21 +576,36 @@ app.delete('/api/todos/:id', (req, res) => {
 // ---- Documents ----
 
 app.get('/api/documents/dedicated', (req, res) => {
-  const dir = path.join(__dirname, 'Documents', 'Dedicated Documents')
   try {
-    const files = fs.readdirSync(dir)
+    const files = fs.readdirSync(DEDICATED_DIR)
       .filter(f => !f.startsWith('.'))
       .sort()
       .map(f => ({
         name: path.basename(f, path.extname(f)),
         filename: f,
         ext: path.extname(f).toLowerCase(),
-        url: `/documents/Dedicated Documents/${encodeURIComponent(f)}`
+        url: `/uploads/dedicated/${encodeURIComponent(f)}`
       }))
     res.json(files)
   } catch (err) {
     res.json([])
   }
+})
+
+app.post('/api/documents/dedicated', dedicatedUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file provided' })
+  res.json({ success: true, filename: req.file.filename })
+})
+
+app.delete('/api/documents/dedicated/:filename', (req, res) => {
+  const filename = req.params.filename
+  if (filename.includes('/') || filename.includes('..')) {
+    return res.status(400).json({ error: 'Invalid filename' })
+  }
+  const filePath = path.join(DEDICATED_DIR, filename)
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' })
+  fs.unlinkSync(filePath)
+  res.json({ success: true })
 })
 
 app.get('/api/invoices', (req, res) => {
@@ -607,7 +637,7 @@ app.delete('/api/invoices/:id', (req, res) => {
   const inv = db.prepare(`SELECT * FROM invoices WHERE id = ?`).get(req.params.id)
   if (!inv) return res.status(404).json({ error: 'Invoice not found' })
   if (inv.filename) {
-    const filePath = path.join(__dirname, 'Documents', 'Invoices', inv.filename)
+    const filePath = path.join(INVOICES_DIR, inv.filename)
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
   }
   db.prepare(`DELETE FROM invoices WHERE id = ?`).run(req.params.id)

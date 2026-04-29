@@ -250,6 +250,7 @@ body.app {
   margin:0 0 20px; font-size:15px; font-weight:600; color:#1a5f7a;
 }
 .doc-section-divider::after { content:''; flex:1; height:0.5px; background:#e2e8f0; }
+.doc-toolbar { display:flex; justify-content:flex-end; margin-bottom:14px; }
 .doc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-bottom:36px; }
 .doc-card {
   background:white; border-radius:12px; border:0.5px solid #e2e8f0;
