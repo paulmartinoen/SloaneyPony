@@ -704,6 +704,23 @@ app.put('/api/settings', (req, res) => {
   res.json({ success: true, settings: getAllSettings() })
 })
 
+// ---- Admin ----
+
+app.get('/admin/backup', (req, res) => {
+  const dbDir = process.env.DB_DIR || path.join(__dirname, 'data')
+  const dbPath = path.join(dbDir, 'sloaney.db')
+
+  try {
+    const mode = db.pragma('journal_mode', { simple: true })
+    if (mode === 'wal') db.pragma('wal_checkpoint(FULL)')
+  } catch (e) {
+    // Not in WAL mode or checkpoint failed — safe to continue
+  }
+
+  const date = new Date().toISOString().slice(0, 10)
+  res.download(dbPath, `sloaney-backup-${date}.db`)
+})
+
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
   console.log(`Sloaney Pony running at http://localhost:${PORT}`)
