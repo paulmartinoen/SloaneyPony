@@ -654,7 +654,6 @@
         const match = btn.getAttribute('onclick')?.match(/showPage\('(\w+)'/)
         if (match && match[1] !== 'bookings') btn.style.display = 'none'
       })
-      document.querySelector('.switch-owner-btn').style.display = 'none'
       document.getElementById('booking-panel').style.display = 'none'
     }
 
