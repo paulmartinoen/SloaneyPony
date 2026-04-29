@@ -326,6 +326,30 @@ app.delete('/api/service-days/:date', (req, res) => {
   res.json({ success: true })
 })
 
+// Atomically cancel any booking on a past date and mark it Out of Service.
+// Any owner can do this regardless of who made the booking.
+app.post('/api/convert-to-service-day', (req, res) => {
+  const { date, requester_initials, requester_name } = req.body || {}
+  if (!date || !requester_initials) {
+    return res.status(400).json({ error: 'date and requester_initials are required' })
+  }
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (new Date(date + 'T12:00:00') > today) {
+    return res.status(400).json({ error: 'Cannot convert a future date to Out of Service this way' })
+  }
+  const booking = db.prepare(`SELECT * FROM bookings WHERE date = ? AND status = 'confirmed'`).get(date)
+  const convert = db.transaction(() => {
+    if (booking) {
+      db.prepare(`UPDATE bookings SET status = 'cancelled' WHERE date = ?`).run(date)
+    }
+    db.prepare(`INSERT OR REPLACE INTO service_days (owner_initials, owner_name, date, notes) VALUES (?, ?, ?, ?)`)
+      .run(requester_initials, requester_name || requester_initials, date, booking ? 'Converted from booking' : null)
+  })
+  convert()
+  res.json({ success: true, bookingCancelled: !!booking, bookedBy: booking?.owner_initials || null })
+})
+
 // Get public holidays
 app.get('/api/holidays', (req, res) => {
   const holidays = db.prepare(`SELECT * FROM public_holidays ORDER BY date`).all()

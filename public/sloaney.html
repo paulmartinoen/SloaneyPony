@@ -975,10 +975,10 @@
 
       const todayMidnight = new Date()
       todayMidnight.setHours(0,0,0,0)
+      const todayStr = `${todayMidnight.getFullYear()}-${String(todayMidnight.getMonth()+1).padStart(2,'0')}-${String(todayMidnight.getDate()).padStart(2,'0')}`
+      const isPastOrToday = dateStr <= todayStr
 
-      // Dates in earlier calendar months are locked forever.
-      // Past dates within the current calendar month remain editable
-      // (so owners can convert an unused booking to service, etc).
+      // Prior months: fully locked
       const isBeforeCurrentMonth =
         d.getFullYear() < todayMidnight.getFullYear() ||
         (d.getFullYear() === todayMidnight.getFullYear() && d.getMonth() < todayMidnight.getMonth())
@@ -992,49 +992,63 @@
         return
       }
 
-      // Existing booking — single-day view (not mixable with multi-select)
+      // Existing booking
       if (bookingMap[dateStr]) {
         selectedDates = []
         renderCalendar()
         renderPoints()
         const b = bookingMap[dateStr]
         const cost = getPointCostDisplay(dateStr, holidayDates)
-        const todayStr = `${todayMidnight.getFullYear()}-${String(todayMidnight.getMonth()+1).padStart(2,'0')}-${String(todayMidnight.getDate()).padStart(2,'0')}`
-        const isPastOrToday = dateStr <= todayStr
-        if (b.owner_initials === owner.initials) {
-          if (isPastOrToday) {
-            panel.innerHTML = `
-              <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
-              <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Booked by you — ${cost} pts</div>
-              <button class="orange-btn" style="width:100%;" onclick="convertToServiceDay('${dateStr}')">Mark Out of Service</button>
-              <div style="font-size:11px; color:#94a3b8; margin-top:8px; text-align:center;">Booking cancelled · ${cost} pts refunded</div>`
-          } else {
+        if (isPastOrToday) {
+          // Past/today: only option is Mark Out of Service, regardless of whose booking
+          const byLine = b.owner_initials === owner.initials
+            ? `Booked by you — ${cost} pts will be refunded`
+            : `Booked by ${b.owner_name} — ${cost} pts will be refunded to them`
+          panel.innerHTML = `
+            <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+            <div style="font-size:12px; color:#64748b; margin-bottom:12px;">${byLine}</div>
+            <button class="orange-btn" style="width:100%;" onclick="convertToServiceDay('${dateStr}')">Mark Out of Service</button>`
+        } else {
+          // Future: Cancel (own) or read-only (others)
+          if (b.owner_initials === owner.initials) {
             panel.innerHTML = `
               <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
               <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Booked by you — ${cost} pts</div>
               <button class="orange-btn" style="width:100%;" onclick="cancelBooking('${dateStr}')">Cancel Booking</button>`
+          } else {
+            panel.innerHTML = `
+              <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+              <div style="font-size:12px; color:#64748b;">Booked by ${b.owner_name}</div>`
           }
-        } else {
-          panel.innerHTML = `
-            <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
-            <div style="font-size:12px; color:#64748b;">Booked by ${b.owner_name}</div>`
         }
         return
       }
 
-      // Service day — single-day view
+      // Service day
       if (serviceMap[dateStr]) {
         selectedDates = []
         renderCalendar()
         renderPoints()
         panel.innerHTML = `
           <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
-          <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Service day — ${serviceMap[dateStr].notes || 'No notes'}</div>
-          <button onclick="cancelServiceDay('${dateStr}')" style="background:white; color:#e8851a; border:1px solid #e8851a; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer;">Cancel Service Day</button>`
+          <div style="font-size:12px; color:#64748b; margin-bottom:12px;">Already marked Out of Service — ${serviceMap[dateStr].notes || 'No notes'}</div>
+          <button onclick="cancelServiceDay('${dateStr}')" style="background:white; color:#e8851a; border:1px solid #e8851a; border-radius:8px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer;">Remove Out of Service</button>`
         return
       }
 
-      // Bookable date — toggle in/out of selection
+      // Past/today with no booking: only allow Mark Out of Service
+      if (isPastOrToday) {
+        selectedDates = []
+        renderCalendar()
+        renderPoints()
+        panel.innerHTML = `
+          <div style="font-size:13px; font-weight:500; margin-bottom:8px;">${label}</div>
+          <div style="font-size:12px; color:#64748b; margin-bottom:12px;">No booking on this day</div>
+          <button class="orange-btn" style="width:100%;" onclick="convertToServiceDay('${dateStr}')">Mark Out of Service</button>`
+        return
+      }
+
+      // Future empty date — toggle in/out of selection for booking
       const idx = selectedDates.indexOf(dateStr)
       if (idx >= 0) {
         selectedDates.splice(idx, 1)
@@ -1191,19 +1205,14 @@ function clearSelectedDay() {
     }
 
     async function convertToServiceDay(date) {
-      if (!confirm('Mark this day out of service? Your booking will be cancelled and your points refunded.')) return
-      const cancelRes = await fetch(`${API}/api/bookings/${date}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_initials: owner.initials })
-      })
-      const cancelData = await cancelRes.json()
-      if (cancelData.error) { alert(cancelData.error); return }
-      await fetch(`${API}/api/service-days`, {
+      if (!confirm('Mark this day out of service? Any existing booking will be cancelled and points refunded.')) return
+      const res = await fetch(`${API}/api/convert-to-service-day`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_initials: owner.initials, owner_name: owner.name, date, notes: 'Converted from booking' })
+        body: JSON.stringify({ date, requester_initials: owner.initials, requester_name: owner.name })
       })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
       clearSelectedDay()
       loadCalendar()
     }
