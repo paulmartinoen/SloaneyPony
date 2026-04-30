@@ -631,8 +631,41 @@
     </div>
   </div>
 
+  <!-- Global confirm modal — replaces browser confirm() to avoid iPad 'Suppress Dialogues' prompt -->
+  <div class="rpt-modal-bg" id="confirm-modal" style="display:none;">
+    <div class="rpt-modal" style="max-width:380px;">
+      <div class="rpt-modal-body">
+        <div id="confirm-message" style="font-size:15px; color:#1e293b; line-height:1.5;"></div>
+      </div>
+      <div class="rpt-modal-foot">
+        <button class="lb-btn" id="confirm-cancel-btn">Cancel</button>
+        <button class="orange-btn" id="confirm-ok-btn" style="padding:7px 18px;">OK</button>
+      </div>
+    </div>
+  </div>
+
   <script>
    const API = ''
+
+    function customConfirm(message) {
+      return new Promise(resolve => {
+        document.getElementById('confirm-message').textContent = message
+        const modal = document.getElementById('confirm-modal')
+        modal.style.display = 'flex'
+        const okBtn = document.getElementById('confirm-ok-btn')
+        const cancelBtn = document.getElementById('confirm-cancel-btn')
+        function cleanup(result) {
+          modal.style.display = 'none'
+          okBtn.removeEventListener('click', onOk)
+          cancelBtn.removeEventListener('click', onCancel)
+          resolve(result)
+        }
+        function onOk() { cleanup(true) }
+        function onCancel() { cleanup(false) }
+        okBtn.addEventListener('click', onOk)
+        cancelBtn.addEventListener('click', onCancel)
+      })
+    }
 
     const _initials = sessionStorage.getItem('owner_initials')
     const _name     = sessionStorage.getItem('owner_name')
@@ -862,7 +895,7 @@
     }
 
     async function cancelServiceDay(date) {
-      if (!confirm('Remove this service day?')) return
+      if (!await customConfirm('Remove this service day?')) return
       await fetch(`${API}/api/service-days/${date}`, { method: 'DELETE' })
       clearSelectedDay()
       loadCalendar()
@@ -1204,7 +1237,7 @@ function clearSelectedDay() {
     }
 
     async function convertToServiceDay(date) {
-      if (!confirm('Mark this day out of service? Any existing booking will be cancelled and points refunded.')) return
+      if (!await customConfirm('Mark this day out of service? Any existing booking will be cancelled and points refunded.')) return
       const res = await fetch(`${API}/api/convert-to-service-day`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1217,14 +1250,14 @@ function clearSelectedDay() {
     }
 
     async function cancelBooking(date) {
-      if (!confirm('Cancel this booking and refund your points?')) return
+      if (!await customConfirm('Cancel this booking and refund your points?')) return
       const res = await fetch(`${API}/api/bookings/${date}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ owner_initials: owner.initials })
       })
       const data = await res.json()
-      if (data.error) { alert(data.error) } else { selectedDates = []; loadCalendar() }
+      if (data.error) { alert(data.error) } else { clearSelectedDay(); loadCalendar() }
     }
 
     function renderPoints() {
@@ -1605,7 +1638,7 @@ let logbookEntries = []
     }
 
     async function deleteDedicatedDoc(encodedFilename) {
-      if (!confirm('Delete this document? This cannot be undone.')) return
+      if (!await customConfirm('Delete this document? This cannot be undone.')) return
       const res = await fetch(`${API}/api/documents/dedicated/${encodedFilename}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.error) { alert(data.error); return }
@@ -1670,7 +1703,7 @@ let logbookEntries = []
     }
 
     async function deleteInvoice(id) {
-      if (!confirm('Delete this invoice? This cannot be undone.')) return
+      if (!await customConfirm('Delete this invoice? This cannot be undone.')) return
       await fetch(`${API}/api/invoices/${id}`, { method: 'DELETE' })
       await loadInvoices()
     }
@@ -2156,7 +2189,7 @@ let logbookEntries = []
     }
 
     async function deleteTodo(id) {
-      if (!confirm('Delete this to-do item?')) return
+      if (!await customConfirm('Delete this to-do item?')) return
       const res = await fetch(`${API}/api/todos/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
