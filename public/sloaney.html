@@ -111,12 +111,12 @@
             <div class="side-card">
               <div class="side-card-title" id="points-card-title" style="font-size:14px;">April Points</div>
               <div id="my-points-display" style="font-size:34px; font-weight:500; color:#1a5f7a;">—</div>
-              <div id="my-points-sub" style="font-size:14px; color:#475569; margin-top:2px;">of 210 remaining</div>
+              <div id="my-points-sub" style="font-size:14px; color:#475569; margin-top:2px;">of 315 remaining</div>
               <div id="my-excess-owed" style="font-size:17px; color:#e8851a; margin-top:10px; display:none;"></div>
               <div style="margin-top:20px; padding-top:16px; border-top:0.5px solid #f0f4f6;">
                 <div class="side-card-title" style="font-size:14px;">Advance Credits</div>
                 <div id="my-advance-display" style="font-size:24px; font-weight:500; color:#e8851a;">—</div>
-                <div id="my-advance-sub" style="font-size:14px; color:#475569;">of 210 remaining</div>
+                <div id="my-advance-sub" style="font-size:14px; color:#475569;">of 315 remaining</div>
               </div>
             </div>
            
@@ -554,22 +554,22 @@
               <div style="color:#1a5f7a; font-weight:500;">Standard booking window</div>
               <div style="color:#1e293b;">60 days</div>
               <div style="color:#1a5f7a; font-weight:500;">Standard credits per month</div>
-              <div style="color:#1e293b;">210</div>
+              <div style="color:#1e293b;">315</div>
               <div style="color:#1a5f7a; font-weight:500;">Advance credits</div>
-              <div style="color:#1e293b;">210</div>
+              <div style="color:#1e293b;">315</div>
             </div>
 
             <div style="margin-top:16px; padding-top:16px; border-top:0.5px solid #e2e8f0;">
               <div style="color:#1a5f7a; font-weight:500; font-size:14px; margin-bottom:8px;">Daily booking cost (points)</div>
               <div style="display:grid; grid-template-columns:1fr auto; gap:6px 20px; font-size:14px;">
-                <div style="color:#1e293b;">Monday</div>       <div style="color:#1e293b;">20</div>
-                <div style="color:#1e293b;">Tuesday</div>      <div style="color:#1e293b;">20</div>
-                <div style="color:#1e293b;">Wednesday</div>    <div style="color:#1e293b;">20</div>
-                <div style="color:#1e293b;">Thursday</div>     <div style="color:#1e293b;">20</div>
-                <div style="color:#1e293b;">Friday</div>       <div style="color:#1e293b;">30</div>
-                <div style="color:#1e293b;">Saturday</div>     <div style="color:#1e293b;">50</div>
-                <div style="color:#1e293b;">Sunday</div>       <div style="color:#1e293b;">50</div>
-                <div style="color:#1e293b;">Public holiday</div><div style="color:#1e293b;">70</div>
+                <div style="color:#1e293b;">Monday</div>       <div style="color:#1e293b;">30</div>
+                <div style="color:#1e293b;">Tuesday</div>      <div style="color:#1e293b;">30</div>
+                <div style="color:#1e293b;">Wednesday</div>    <div style="color:#1e293b;">30</div>
+                <div style="color:#1e293b;">Thursday</div>     <div style="color:#1e293b;">30</div>
+                <div style="color:#1e293b;">Friday</div>       <div style="color:#1e293b;">45</div>
+                <div style="color:#1e293b;">Saturday</div>     <div style="color:#1e293b;">75</div>
+                <div style="color:#1e293b;">Sunday</div>       <div style="color:#1e293b;">75</div>
+                <div style="color:#1e293b;">Public holiday</div><div style="color:#1e293b;">105</div>
               </div>
             </div>
           </div>
@@ -960,11 +960,11 @@
     }
 
     function getPointCostDisplay(dateStr, holidayDates) {
-      if (holidayDates.has(dateStr)) return 70
+      if (holidayDates.has(dateStr)) return 105
       const dow = new Date(dateStr + 'T12:00:00').getDay()
-      if (dow === 5) return 30
-      if (dow === 6 || dow === 0) return 50
-      return 20
+      if (dow === 5) return 45
+      if (dow === 6 || dow === 0) return 75
+      return 30
     }
 
     function selectDay(dateStr, bookingMap, serviceMap, holidayDates) {
@@ -1104,9 +1104,9 @@
         let remaining
         if (yr === currentYear && mo === currentMonth) {
           const myStd = pointsData.standard?.find(p => p.owner_initials === owner.initials)
-          remaining = myStd ? (myStd.points_allocated - myStd.points_used) : 210
+          remaining = myStd ? (myStd.points_allocated - myStd.points_used) : 315
         } else {
-          remaining = 210  // best-effort fallback for non-visible months
+          remaining = 315  // best-effort fallback for non-visible months
         }
         const { mandatory, excessEligible } = byMonth[key]
         const leftover = Math.max(0, remaining - mandatory)
@@ -1300,7 +1300,7 @@ function clearSelectedDay() {
         ]
         allOwners.forEach(o => {
           const pts = pointsData.standard?.find(p => p.owner_initials === o.initials)
-          const remaining = pts ? pts.points_allocated - pts.points_used : 210
+          const remaining = pts ? pts.points_allocated - pts.points_used : 315
           const c = ownerColors[o.initials]
           allDiv.innerHTML += `
             <div class="owner-pts-row">
