@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sloaney Pony</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="login">
+  <div class="login-card">
+    <div class="anchor">⚓</div>
+    <h1>Sloaney Pony</h1>
+    <p class="subtitle">Please sign in to continue</p>
+
+    <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+      <div>
+        <label style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600; display:block; margin-bottom:4px;">Username</label>
+        <input id="username" type="text" autocomplete="username"
+          style="width:100%; padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:15px; outline:none; box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter') document.getElementById('password').focus()">
+      </div>
+      <div>
+        <label style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600; display:block; margin-bottom:4px;">Password</label>
+        <input id="password" type="password" autocomplete="current-password"
+          style="width:100%; padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:15px; outline:none; box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter') signIn()">
+      </div>
+      <div id="login-error" style="display:none; font-size:13px; color:#dc2626; text-align:center;"></div>
+      <button class="orange-btn" onclick="signIn()"
+        style="width:100%; padding:11px; font-size:15px; border-radius:8px; margin-top:4px;">
+        Sign In
+      </button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('username').focus()
+
+    async function signIn() {
+      const username = document.getElementById('username').value.trim()
+      const password = document.getElementById('password').value.trim()
+      const errorEl = document.getElementById('login-error')
+      errorEl.style.display = 'none'
+
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+      const data = await res.json()
+      if (data.success) {
+        window.location.href = '/index.html'
+      } else {
+        errorEl.textContent = 'Incorrect username or password.'
+        errorEl.style.display = 'block'
+        document.getElementById('password').value = ''
+        document.getElementById('password').focus()
+      }
+    }
+  </script>
+</body>
+</html>

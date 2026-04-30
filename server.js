@@ -18,8 +18,45 @@ const INVOICES_DIR = path.join(DOCS_DIR, 'invoices')
 fs.mkdirSync(DEDICATED_DIR, { recursive: true })
 fs.mkdirSync(INVOICES_DIR, { recursive: true })
 
+const GATE_USER = (process.env.GATE_USER || 'white').toLowerCase()
+const GATE_PASS = (process.env.GATE_PASS || 'horse').toLowerCase()
+
+function parseCookies(req) {
+  const cookies = {}
+  ;(req.headers.cookie || '').split(';').forEach(c => {
+    const [k, v] = c.trim().split('=')
+    if (k) cookies[k.trim()] = (v || '').trim()
+  })
+  return cookies
+}
+
 const app = express()
 app.use(express.json())
+
+// ---- Gate middleware ----
+const GATE_PUBLIC = new Set(['/login.html', '/styles.css', '/api/login'])
+app.use((req, res, next) => {
+  if (GATE_PUBLIC.has(req.path)) return next()
+  if (req.path.startsWith('/images/')) return next()
+  if (parseCookies(req)['sp_auth'] === 'granted') return next()
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' })
+  res.redirect('/login.html')
+})
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body || {}
+  if ((username || '').toLowerCase() === GATE_USER && (password || '').toLowerCase() === GATE_PASS) {
+    res.setHeader('Set-Cookie', `sp_auth=granted; Path=/; Max-Age=${30 * 24 * 60 * 60}; HttpOnly; SameSite=Strict`)
+    return res.json({ success: true })
+  }
+  res.json({ success: false })
+})
+
+app.get('/api/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'sp_auth=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict')
+  res.redirect('/login.html')
+})
+
 app.use(express.static(path.join(__dirname, 'public')))
 app.use('/uploads', express.static(DOCS_DIR))
 
