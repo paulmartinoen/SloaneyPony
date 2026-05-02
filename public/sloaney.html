@@ -1867,6 +1867,23 @@ let logbookEntries = []
               <input class="rpt-reply-input" id="rpt-reply-${r.id}" type="text" placeholder="Add a Reply">
               <button class="lb-btn" onclick="submitReply(${r.id})">Submit</button>
             </div>
+            <div class="rpt-attach-section">
+              ${(r.attachments || []).map(a => {
+                const isPdf = a.original_name.toLowerCase().endsWith('.pdf')
+                const icon = isPdf ? '📄' : '📷'
+                const canDelete = a.uploaded_by === owner.initials
+                return `<div class="rpt-attach-item">
+                  <span>${icon}</span>
+                  <a href="/uploads/reports/${encodeURIComponent(a.filename)}" target="_blank" class="rpt-attach-name">${a.original_name}</a>
+                  ${canDelete ? `<button onclick="deleteAttachment(${r.id}, ${a.id})" class="rpt-attach-del" title="Delete">✕</button>` : ''}
+                </div>`
+              }).join('')}
+              <label class="rpt-attach-btn">
+                📎 Attach file
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                  style="display:none;" onchange="uploadAttachment(${r.id}, this)">
+              </label>
+            </div>
           </div>`
       }
 
@@ -2233,6 +2250,33 @@ let logbookEntries = []
       const data = await res.json()
       if (data.error) { alert(data.error); return }
       await loadTodos()
+    }
+
+    // ---- Report attachments ----
+
+    async function uploadAttachment(reportId, input) {
+      const file = input.files[0]
+      if (!file) return
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('uploaded_by', owner.initials)
+      const res = await fetch(`${API}/api/reports/${reportId}/attachments`, { method: 'POST', body: formData })
+      const data = await res.json()
+      input.value = ''
+      if (data.error) { alert(data.error); return }
+      await loadReports()
+    }
+
+    async function deleteAttachment(reportId, attachmentId) {
+      if (!await customConfirm('Delete this attachment?')) return
+      const res = await fetch(`${API}/api/reports/${reportId}/attachments/${attachmentId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requester_initials: owner.initials })
+      })
+      const data = await res.json()
+      if (data.error) { alert(data.error); return }
+      await loadReports()
     }
 
     // On first open, land on Bookings and load the calendar

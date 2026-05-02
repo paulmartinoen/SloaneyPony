@@ -15,8 +15,10 @@ const DB_DIR = process.env.DB_DIR || path.join(__dirname, 'data')
 const DOCS_DIR = process.env.DOCS_DIR || path.join(DB_DIR, 'documents')
 const DEDICATED_DIR = path.join(DOCS_DIR, 'dedicated')
 const INVOICES_DIR = path.join(DOCS_DIR, 'invoices')
+const REPORTS_DIR = path.join(DOCS_DIR, 'reports')
 fs.mkdirSync(DEDICATED_DIR, { recursive: true })
 fs.mkdirSync(INVOICES_DIR, { recursive: true })
+fs.mkdirSync(REPORTS_DIR, { recursive: true })
 
 const GATE_USER = (process.env.GATE_USER || 'white').toLowerCase()
 const GATE_PASS = (process.env.GATE_PASS || 'horse').toLowerCase()
@@ -59,6 +61,21 @@ app.get('/api/logout', (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')))
 app.use('/uploads', express.static(DOCS_DIR))
+
+const reportUpload = multer({
+  storage: multer.diskStorage({
+    destination: REPORTS_DIR,
+    filename: (req, file, cb) => {
+      const unique = Date.now() + '-' + Math.round(Math.random() * 1e9)
+      cb(null, unique + path.extname(file.originalname))
+    }
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']
+    cb(null, allowed.includes(file.mimetype))
+  }
+})
 
 const dedicatedUpload = multer({
   storage: multer.diskStorage({
@@ -509,12 +526,18 @@ app.put('/api/logbook/:entry_num', (req, res) => {
 app.get('/api/reports', (req, res) => {
   const reports = db.prepare(`SELECT * FROM reports ORDER BY report_date DESC, created_at DESC`).all()
   const replies = db.prepare(`SELECT * FROM report_replies ORDER BY created_at ASC`).all()
+  const attachments = db.prepare(`SELECT * FROM report_attachments ORDER BY created_at ASC`).all()
   const replyMap = {}
   for (const r of replies) {
     if (!replyMap[r.report_id]) replyMap[r.report_id] = []
     replyMap[r.report_id].push(r)
   }
-  res.json(reports.map(r => ({ ...r, replies: replyMap[r.id] || [] })))
+  const attachMap = {}
+  for (const a of attachments) {
+    if (!attachMap[a.report_id]) attachMap[a.report_id] = []
+    attachMap[a.report_id].push(a)
+  }
+  res.json(reports.map(r => ({ ...r, replies: replyMap[r.id] || [], attachments: attachMap[r.id] || [] })))
 })
 
 app.post('/api/reports', (req, res) => {
@@ -561,6 +584,29 @@ app.post('/api/reports/:id/replies', (req, res) => {
     `INSERT INTO report_replies (report_id, author_initials, author_name, body) VALUES (?, ?, ?, ?)`
   ).run(req.params.id, author_initials, author_name || author_initials, body.trim())
   res.json({ success: true, id: info.lastInsertRowid })
+})
+
+app.post('/api/reports/:id/attachments', reportUpload.single('file'), (req, res) => {
+  const { uploaded_by } = req.body || {}
+  if (!req.file) return res.status(400).json({ error: 'No file provided' })
+  if (!uploaded_by) return res.status(400).json({ error: 'uploaded_by is required' })
+  const report = db.prepare(`SELECT id FROM reports WHERE id = ?`).get(req.params.id)
+  if (!report) return res.status(404).json({ error: 'Report not found' })
+  const info = db.prepare(
+    `INSERT INTO report_attachments (report_id, filename, original_name, uploaded_by) VALUES (?, ?, ?, ?)`
+  ).run(req.params.id, req.file.filename, req.file.originalname, uploaded_by)
+  res.json({ success: true, id: info.lastInsertRowid })
+})
+
+app.delete('/api/reports/:id/attachments/:attachmentId', (req, res) => {
+  const { requester_initials } = req.body || {}
+  const att = db.prepare(`SELECT * FROM report_attachments WHERE id = ? AND report_id = ?`).get(req.params.attachmentId, req.params.id)
+  if (!att) return res.status(404).json({ error: 'Attachment not found' })
+  if (att.uploaded_by !== requester_initials) return res.status(403).json({ error: 'Cannot delete another owner\'s attachment' })
+  const filePath = path.join(REPORTS_DIR, att.filename)
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+  db.prepare(`DELETE FROM report_attachments WHERE id = ?`).run(req.params.attachmentId)
+  res.json({ success: true })
 })
 
 // ---- Todos ----
