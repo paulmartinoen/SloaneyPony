@@ -532,12 +532,22 @@ app.get('/api/reports', (req, res) => {
     if (!replyMap[r.report_id]) replyMap[r.report_id] = []
     replyMap[r.report_id].push(r)
   }
-  const attachMap = {}
+  const reportAttachMap = {}
+  const replyAttachMap = {}
   for (const a of attachments) {
-    if (!attachMap[a.report_id]) attachMap[a.report_id] = []
-    attachMap[a.report_id].push(a)
+    if (a.reply_id) {
+      if (!replyAttachMap[a.reply_id]) replyAttachMap[a.reply_id] = []
+      replyAttachMap[a.reply_id].push(a)
+    } else {
+      if (!reportAttachMap[a.report_id]) reportAttachMap[a.report_id] = []
+      reportAttachMap[a.report_id].push(a)
+    }
   }
-  res.json(reports.map(r => ({ ...r, replies: replyMap[r.id] || [], attachments: attachMap[r.id] || [] })))
+  res.json(reports.map(r => ({
+    ...r,
+    attachments: reportAttachMap[r.id] || [],
+    replies: (replyMap[r.id] || []).map(rep => ({ ...rep, attachments: replyAttachMap[rep.id] || [] }))
+  })))
 })
 
 app.post('/api/reports', (req, res) => {
@@ -595,6 +605,18 @@ app.post('/api/reports/:id/attachments', reportUpload.single('file'), (req, res)
   const info = db.prepare(
     `INSERT INTO report_attachments (report_id, filename, original_name, uploaded_by) VALUES (?, ?, ?, ?)`
   ).run(req.params.id, req.file.filename, req.file.originalname, uploaded_by)
+  res.json({ success: true, id: info.lastInsertRowid })
+})
+
+app.post('/api/reports/:id/replies/:replyId/attachments', reportUpload.single('file'), (req, res) => {
+  const { uploaded_by } = req.body || {}
+  if (!req.file) return res.status(400).json({ error: 'No file provided' })
+  if (!uploaded_by) return res.status(400).json({ error: 'uploaded_by is required' })
+  const reply = db.prepare(`SELECT id FROM report_replies WHERE id = ? AND report_id = ?`).get(req.params.replyId, req.params.id)
+  if (!reply) return res.status(404).json({ error: 'Reply not found' })
+  const info = db.prepare(
+    `INSERT INTO report_attachments (report_id, reply_id, filename, original_name, uploaded_by) VALUES (?, ?, ?, ?, ?)`
+  ).run(req.params.id, req.params.replyId, req.file.filename, req.file.originalname, uploaded_by)
   res.json({ success: true, id: info.lastInsertRowid })
 })
 

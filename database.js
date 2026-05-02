@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS logbook (
   CREATE TABLE IF NOT EXISTS report_attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     report_id INTEGER NOT NULL,
+    reply_id INTEGER,
     filename TEXT NOT NULL,
     original_name TEXT NOT NULL,
     uploaded_by TEXT NOT NULL,
@@ -119,6 +120,11 @@ CREATE TABLE IF NOT EXISTS logbook (
     done_by TEXT
   );
 `)
+
+// ---- Migration: add reply_id to report_attachments if missing ----
+try {
+  db.exec(`ALTER TABLE report_attachments ADD COLUMN reply_id INTEGER`)
+} catch (e) { /* column already exists — safe to ignore */ }
 
 // ---- Migration: drop old UNIQUE constraint on bookings.date ----
 // The original schema had `date TEXT NOT NULL UNIQUE`, which blocks new
