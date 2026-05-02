@@ -22,7 +22,7 @@ db.exec(`
     owner_initials TEXT NOT NULL,
     year INTEGER NOT NULL,
     month INTEGER NOT NULL,
-    points_allocated INTEGER NOT NULL DEFAULT 315,
+    points_allocated INTEGER NOT NULL DEFAULT 210,
     points_used INTEGER NOT NULL DEFAULT 0,
     UNIQUE(owner_initials, year, month)
   );
@@ -30,7 +30,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS advance_credits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_initials TEXT NOT NULL UNIQUE,
-    credits_allocated INTEGER NOT NULL DEFAULT 315,
+    credits_allocated INTEGER NOT NULL DEFAULT 210,
     credits_used INTEGER NOT NULL DEFAULT 0
   );
 
@@ -181,7 +181,7 @@ function initAdvanceCredits() {
   for (const owner of owners) {
     db.prepare(`
       INSERT OR IGNORE INTO advance_credits (owner_initials, credits_allocated)
-      VALUES (?, 315)
+      VALUES (?, 210)
     `).run(owner.initials)
   }
 }
@@ -191,7 +191,7 @@ function ensureStandardPoints(year, month) {
     db.prepare(`
       INSERT OR IGNORE INTO standard_points
         (owner_initials, year, month, points_allocated)
-      VALUES (?, ?, ?, 315)
+      VALUES (?, ?, ?, 210)
     `).run(owner.initials, year, month)
   }
 }
@@ -202,10 +202,10 @@ function getPointCost(dateStr) {
   const isHoliday = db.prepare(
     'SELECT id FROM public_holidays WHERE date = ?'
   ).get(dateStr)
-  if (isHoliday) return 105
-  if (dow === 5) return 45
-  if (dow === 6 || dow === 0) return 75
-  return 30
+  if (isHoliday) return 70
+  if (dow === 5) return 30
+  if (dow === 6 || dow === 0) return 50
+  return 20
 }
 
 function isAdvanceBooking(dateStr) {
