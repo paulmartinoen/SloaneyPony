@@ -860,7 +860,7 @@
       tbody.innerHTML = data.map(row => {
         const isService = row.type === 'service'
         const isOwn = !isService && row.owner_initials === owner.initials
-        const isPastOrToday = row.date <= todayStr
+        const isPastOrToday = row.date < todayStr
         const canConvert = isOwner && isOwn && isPastOrToday
         const canCancel = isOwner && !isPastOrToday && (isOwn || isService)
 
@@ -1008,7 +1008,7 @@
       const todayMidnight = new Date()
       todayMidnight.setHours(0,0,0,0)
       const todayStr = `${todayMidnight.getFullYear()}-${String(todayMidnight.getMonth()+1).padStart(2,'0')}-${String(todayMidnight.getDate()).padStart(2,'0')}`
-      const isPastOrToday = dateStr <= todayStr
+      const isPastOrToday = dateStr < todayStr
 
       // Prior months: fully locked
       const isBeforeCurrentMonth =
