@@ -762,6 +762,15 @@ app.post('/api/invoices', invoiceUpload.single('file'), (req, res) => {
   res.json({ success: true, id: info.lastInsertRowid })
 })
 
+app.patch('/api/invoices/:id', (req, res) => {
+  const inv = db.prepare(`SELECT * FROM invoices WHERE id = ?`).get(req.params.id)
+  if (!inv) return res.status(404).json({ error: 'Invoice not found' })
+  const { category } = req.body || {}
+  if (!category) return res.status(400).json({ error: 'category is required' })
+  db.prepare(`UPDATE invoices SET category = ? WHERE id = ?`).run(category, req.params.id)
+  res.json({ success: true })
+})
+
 app.delete('/api/invoices/:id', (req, res) => {
   const inv = db.prepare(`SELECT * FROM invoices WHERE id = ?`).get(req.params.id)
   if (!inv) return res.status(404).json({ error: 'Invoice not found' })
