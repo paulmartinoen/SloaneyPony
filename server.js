@@ -153,7 +153,8 @@ app.get('/api/points/:year/:month', (req, res) => {
       SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
       WHERE owner_initials = ? AND status = 'confirmed'
       AND date > date('now', 'localtime', '+60 days')
-    `).get(row.owner_initials)
+      AND strftime('%Y', date) = ?
+    `).get(row.owner_initials, String(yr))
     return { ...row, credits_used: used }
   })
 
@@ -200,17 +201,18 @@ app.post('/api/bookings', (req, res) => {
     }
   }
 
-  // Advance bookings additionally check the advance credit pool
+  // Advance bookings additionally check the advance credit pool (per calendar year)
   if (advance) {
     const advRow = db.prepare(`SELECT * FROM advance_credits WHERE owner_initials = ?`).get(owner_initials)
     const { used } = db.prepare(`
       SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
       WHERE owner_initials = ? AND status = 'confirmed'
       AND date > date('now', 'localtime', '+60 days')
-    `).get(owner_initials)
+      AND strftime('%Y', date) = ?
+    `).get(owner_initials, String(year))
     const remaining = advRow.credits_allocated - used
     if (remaining < pointCost) {
-      return res.status(400).json({ error: `Not enough advance credits. Need ${pointCost}, have ${remaining}` })
+      return res.status(400).json({ error: `Not enough advance credits for ${year}. Need ${pointCost}, have ${remaining}` })
     }
   }
 
@@ -248,7 +250,7 @@ app.post('/api/bookings/batch', (req, res) => {
   const plan = []
   // Per-month totals covering ALL booking types — advance and standard both count toward the monthly cap
   const monthlyCapCheck = {}  // key "YYYY-M" → { mandatory, excessEligible }
-  const advanceSpend = { total: 0 }
+  const advanceSpendByYear = {}  // key: year → total advance points being spent
 
   for (const date of dates) {
     // Already booked?
@@ -271,7 +273,7 @@ app.post('/api/bookings/batch', (req, res) => {
     ensureStandardPoints(year, month)
     plan.push({ date, pointCost, advance, within48, year, month })
 
-    if (advance) advanceSpend.total += pointCost
+    if (advance) advanceSpendByYear[year] = (advanceSpendByYear[year] || 0) + pointCost
 
     const key = `${year}-${month}`
     if (!monthlyCapCheck[key]) monthlyCapCheck[key] = { mandatory: 0, excessEligible: 0 }
@@ -279,17 +281,18 @@ app.post('/api/bookings/batch', (req, res) => {
     else monthlyCapCheck[key].mandatory += pointCost
   }
 
-  // Verify advance credit pool
-  if (advanceSpend.total > 0) {
-    const advRow = db.prepare(`SELECT * FROM advance_credits WHERE owner_initials = ?`).get(owner_initials)
+  // Verify advance credit pool — checked per calendar year (each year has its own 210)
+  const advRow = db.prepare(`SELECT * FROM advance_credits WHERE owner_initials = ?`).get(owner_initials)
+  for (const [yr, spend] of Object.entries(advanceSpendByYear)) {
     const { used } = db.prepare(`
       SELECT COALESCE(SUM(points_cost), 0) as used FROM bookings
       WHERE owner_initials = ? AND status = 'confirmed'
       AND date > date('now', 'localtime', '+60 days')
-    `).get(owner_initials)
+      AND strftime('%Y', date) = ?
+    `).get(owner_initials, yr)
     const remaining = advRow.credits_allocated - used
-    if (remaining < advanceSpend.total) {
-      return res.status(400).json({ error: `Not enough advance credits. Need ${advanceSpend.total}, have ${remaining}` })
+    if (remaining < spend) {
+      return res.status(400).json({ error: `Not enough advance credits for ${yr}. Need ${spend}, have ${remaining}` })
     }
   }
 

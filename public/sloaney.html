@@ -1301,7 +1301,7 @@ function clearSelectedDay() {
           : `${remaining}`
         document.getElementById('my-advance-display').innerHTML =
           `${display}<span style="font-size:13px; font-weight:400; color:#475569; margin-left:8px;">advance credits remaining</span>`
-        document.getElementById('my-advance-sub').textContent = `of ${myAdvance.credits_allocated} — used ${myAdvance.credits_used}`
+        document.getElementById('my-advance-sub').textContent = `of ${myAdvance.credits_allocated} in ${calYear} — used ${myAdvance.credits_used}`
       }
 
       // Running total of excess dollars owed for the visible month.
